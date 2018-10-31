@@ -54,6 +54,7 @@
 #include <stdbool.h>
 #include <stdint.h>
 #include <string.h>
+#include <math.h>
 
 #include "nordic_common.h"
 #include "nrf.h"
@@ -81,7 +82,10 @@
 #include "nrf_log_ctrl.h"
 #include "nrf_log_default_backends.h"
 
+#include "nrf_delay.h"
+
 #include "ble_run.h"
+#include "mpu9250.h"
 
 
 #define DEVICE_NAME                     "RunSensor"                            /**< Name of device. Will be included in the advertising data. */
@@ -113,8 +117,12 @@
 #define DEAD_BEEF                       0xDEADBEEF                              /**< Value used as error code on stack dump, can be used to identify stack location on stack unwind. */
 
 #define NOTIFICATION_INTERVAL           APP_TIMER_TICKS(1000)
+#define UPDATE_LOOP_DT                  10
+#define UPDATE_LOOP_INTERVAL            APP_TIMER_TICKS(UPDATE_LOOP_DT)
+
 
 APP_TIMER_DEF(m_notification_timer_id);                                         /**< Create application timer ID */
+APP_TIMER_DEF(m_update_loop_timer_id);                                          /**< Create application timer ID */
 
 NRF_BLE_GATT_DEF(m_gatt);                                                       /**< GATT module instance. */
 NRF_BLE_QWR_DEF(m_qwr);                                                         /**< Context for the Queued Write module.*/
@@ -123,7 +131,13 @@ BLE_ADVERTISING_DEF(m_advertising);                                             
 
 static uint16_t m_conn_handle = BLE_CONN_HANDLE_INVALID;                        /**< Handle of the current connection. */
 
-static uint8_t m_xz_value = 0;
+static uint16_t m_xz_value = 0;
+static uint16_t m_yz_value = 0;
+
+static double yz_angle = 0;
+static double xz_angle = 0;
+
+static ble_run_char_no_en notifications_en; 
 
 /* YOUR_JOB: Declare all services structure your application is using
  *  BLE_XYZ_DEF(m_xyz);
@@ -261,13 +275,74 @@ static void pm_evt_handler(pm_evt_t const * p_evt)
 static void notification_timeout_handler(void * p_context)
 {
     UNUSED_PARAMETER(p_context);
-    ret_code_t err_code;
+    ret_code_t err_code;   
+
+    nrf_gpio_pin_toggle(LED_4); 
+
+    if(notifications_en.xz_value_notification_en){
+      //m_xz_value++;
+      err_code = ble_run_xz_value_update(&m_run, m_xz_value);
+      APP_ERROR_CHECK(err_code);
+    }
     
-    // Increment the value of m_xz_value before nortifing it.
-    m_xz_value++;
+    if(notifications_en.yz_value_notification_en){
+      //m_yz_value++;
+      err_code = ble_run_yz_value_update(&m_run, m_yz_value);
+      APP_ERROR_CHECK(err_code);
+    }
     
-    err_code = ble_run_xz_value_update(&m_run, m_xz_value);
-    APP_ERROR_CHECK(err_code);
+}
+
+/**@brief Function for handling the update loop timer timeout.
+ *
+ * @details This function will be called each time the update loop timer expires.
+ *
+ * @param[in] p_context  Pointer used for passing some arbitrary information (context) from the
+ *                       app_start_timer() call to the timeout handler.
+ */
+static void update_loop_timeout_handler(void * p_context)
+{
+    UNUSED_PARAMETER(p_context);
+    ret_code_t err_code;   
+    mpu9250_sensor_values sensor_values = {0};
+    double xz_angle_acc = 0;
+    double yz_angle_acc = 0;
+    double gyro_X = 0;
+    double gyro_Y = 0;
+
+    static int counter = 0;
+
+    double filter_constant = 0.95;
+
+    read_mpu_sensors(&sensor_values);
+    
+    //NRF_LOG_INFO("ACC X:  %d.", sensor_values.accl_X);
+    //NRF_LOG_INFO("ACC Y:  %d.", sensor_values.accl_Y);
+    //NRF_LOG_INFO("ACC Z:  %d.", sensor_values.accl_Z);
+
+    xz_angle_acc = atan2((double)sensor_values.accl_X,(double)sensor_values.accl_Z)*180/3.1415;
+    yz_angle_acc = atan2((double)sensor_values.accl_Y,(double)sensor_values.accl_Z)*180/3.1415;
+    
+
+    gyro_Y = (double)(-1*sensor_values.gyro_Y) / 131;
+    gyro_X = (double)(-1*sensor_values.gyro_X) / 131;
+
+    xz_angle = filter_constant*(xz_angle + gyro_Y * UPDATE_LOOP_DT/1000 ) + (1-filter_constant)*xz_angle_acc;
+    yz_angle = filter_constant*(yz_angle + gyro_X * UPDATE_LOOP_DT/1000 ) + (1-filter_constant)*yz_angle_acc;
+
+    m_xz_value = (int)xz_angle + 90;
+    m_yz_value = (int)yz_angle + 90;
+
+    counter++;
+    if(counter > 20)
+    {
+        NRF_LOG_INFO("ACC XZ Angle:  %d.", xz_angle_acc);
+        //NRF_LOG_INFO("GYRO Y:  %d.", gyro_Y);
+        NRF_LOG_INFO("Gyro Y: " NRF_LOG_FLOAT_MARKER "\r\n", NRF_LOG_FLOAT(gyro_Y*0.01));
+        NRF_LOG_INFO("COMP XZ Angle: " NRF_LOG_FLOAT_MARKER "\r\n", NRF_LOG_FLOAT(xz_angle));
+        counter = 0;
+    }
+    
 }
 
 
@@ -281,7 +356,12 @@ static void timers_init(void)
     ret_code_t err_code = app_timer_init();
     APP_ERROR_CHECK(err_code);
 
+    //Create timer for characteristics notification 
     err_code = app_timer_create(&m_notification_timer_id, APP_TIMER_MODE_REPEATED, notification_timeout_handler);
+    APP_ERROR_CHECK(err_code);
+
+    //Create timer for sensor sampling
+    err_code = app_timer_create(&m_update_loop_timer_id, APP_TIMER_MODE_REPEATED, update_loop_timeout_handler);
     APP_ERROR_CHECK(err_code);
 
     // Create timers.
@@ -369,19 +449,58 @@ static void on_run_evt(ble_run_t     * p_run_service,
 
     NRF_LOG_INFO("Run Evt.");
 
+    static uint8_t timer_started = 0;
+
     switch(p_evt->evt_type)
     {
-        case BLE_RUN_EVT_NOTIFICATION_ENABLED:
+        case BLE_RUN_EVT_XZ_NOTIFICATION_ENABLED:
+            notifications_en.xz_value_notification_en = 1;
             //Start application timer when notifications are enabled
-            m_xz_value = 0;
-            err_code = app_timer_start(m_notification_timer_id, NOTIFICATION_INTERVAL, NULL);
-            APP_ERROR_CHECK(err_code);
+
+            if(timer_started == 0){
+                err_code = app_timer_start(m_notification_timer_id, NOTIFICATION_INTERVAL, NULL);
+                APP_ERROR_CHECK(err_code);
+                timer_started = 1;
+            }
+
+            
             break;
 
-        case BLE_RUN_EVT_NOTIFICATION_DISABLED:
+        case BLE_RUN_EVT_XZ_NOTIFICATION_DISABLED:
+            notifications_en.xz_value_notification_en = 0;
             //Stop application timer when notifications are disabled
-            err_code = app_timer_stop(m_notification_timer_id);
-            APP_ERROR_CHECK(err_code);
+            if(timer_started == 1){
+                err_code = app_timer_stop(m_notification_timer_id);
+                APP_ERROR_CHECK(err_code);
+                timer_started = 0;
+            }
+            break;
+
+        case BLE_RUN_EVT_YZ_NOTIFICATION_ENABLED:
+            notifications_en.yz_value_notification_en = 1;
+            //Start application timer when notifications are enabled
+
+            //err_code = app_timer_start(m_notification_timer_id, NOTIFICATION_INTERVAL, NULL);
+            //APP_ERROR_CHECK(err_code);
+            if(timer_started == 0){
+                err_code = app_timer_start(m_notification_timer_id, NOTIFICATION_INTERVAL, NULL);
+                APP_ERROR_CHECK(err_code);
+                timer_started = 1;
+            }
+            break;
+
+        case BLE_RUN_EVT_YZ_NOTIFICATION_DISABLED:
+            notifications_en.yz_value_notification_en = 0;
+            //Stop application timer when notifications are disabled
+            //err_code = app_timer_stop(m_notification_timer_id);
+            //APP_ERROR_CHECK(err_code);
+
+            if(timer_started == 1){
+                err_code = app_timer_stop(m_notification_timer_id);
+                APP_ERROR_CHECK(err_code);
+                timer_started = 0;
+            }
+
             break;
         
         case BLE_RUN_EVT_CONNECTED:
@@ -394,6 +513,7 @@ static void on_run_evt(ble_run_t     * p_run_service,
               // No implementation needed.
               break;
     }
+
 }
 
 /**@brief Function for initializing services that will be used by the application.
@@ -421,11 +541,17 @@ static void services_init(void)
     BLE_GAP_CONN_SEC_MODE_SET_OPEN(&run_init.xz_value_char_attr_md.read_perm);
     BLE_GAP_CONN_SEC_MODE_SET_OPEN(&run_init.xz_value_char_attr_md.write_perm);
 
+    BLE_GAP_CONN_SEC_MODE_SET_OPEN(&run_init.yz_value_char_attr_md.cccd_write_perm);
+    BLE_GAP_CONN_SEC_MODE_SET_NO_ACCESS(&run_init.yz_value_char_attr_md.read_perm);
+    BLE_GAP_CONN_SEC_MODE_SET_NO_ACCESS(&run_init.yz_value_char_attr_md.write_perm);
 
     err_code = ble_run_init(&m_run, &run_init);
     NRF_LOG_INFO("ble_run_init result: %x.", err_code); 
     APP_ERROR_CHECK(err_code);	
 
+    //Init notifications enabled struct to all 0
+    memset(&notifications_en, 0, sizeof(ble_run_char_no_en));
+  
     NRF_LOG_INFO("Services Init.");
 
 }
@@ -571,7 +697,6 @@ static void ble_evt_handler(ble_evt_t const * p_ble_evt, void * p_context)
             NRF_LOG_INFO("nrf_ble_qwr_conn_handle_assign begin");
             err_code = nrf_ble_qwr_conn_handle_assign(&m_qwr, m_conn_handle);
             NRF_LOG_INFO("nrf_ble_qwr_conn_handle_assign error code");
-            NRF_LOG_INFO((char)err_code);
             APP_ERROR_CHECK(err_code);
             break;
 
@@ -828,6 +953,10 @@ static void advertising_start(bool erase_bonds)
 int main(void)
 {
     bool erase_bonds;
+    ret_code_t err_code;
+
+    //MPU9250 sensor values struct
+    mpu9250_sensor_values sensor_values;
 
     // Initialize.
     log_init();
@@ -847,11 +976,21 @@ int main(void)
     application_timers_start();
 
     advertising_start(erase_bonds);
+    
+    nrf_drv_mpu_init();
+    mpu9250_wake();
+
+    //Start update loop timer
+    err_code = app_timer_start(m_update_loop_timer_id, UPDATE_LOOP_INTERVAL, NULL);
+    APP_ERROR_CHECK(err_code);
+
 
     // Enter main loop.
     for (;;)
     {
         idle_state_handle();
+        //read_mpu_sensors(&sensor_values);
+        //NRF_LOG_INFO("ACC Z:  %d.", sensor_values.accl_Z);
     }
 }
 

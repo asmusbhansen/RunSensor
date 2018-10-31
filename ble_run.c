@@ -56,7 +56,7 @@ static void on_write(ble_run_t * p_run, ble_evt_t const * p_ble_evt)
         nrf_gpio_pin_toggle(LED_4); 
     }
 
-    // Check if the Run value CCCD is written to and that the value is the appropriate length, i.e 2 bytes.
+    // Check if the XZ value CCCD is written to and that the value is the appropriate length, i.e 2 bytes.
     if ((p_evt_write->handle == p_run->xz_value_handles.cccd_handle)
         && (p_evt_write->len == 2)
        )
@@ -69,17 +69,43 @@ static void on_write(ble_run_t * p_run, ble_evt_t const * p_ble_evt)
 
             if (ble_srv_is_notification_enabled(p_evt_write->data))
             {
-                evt.evt_type = BLE_RUN_EVT_NOTIFICATION_ENABLED;
+                evt.evt_type = BLE_RUN_EVT_XZ_NOTIFICATION_ENABLED;
             }
             else
             {
-                evt.evt_type = BLE_RUN_EVT_NOTIFICATION_DISABLED;
+                evt.evt_type = BLE_RUN_EVT_XZ_NOTIFICATION_DISABLED;
             }
             // Call the application event handler.
             p_run->evt_handler(p_run, &evt);
         }
 
     }
+
+    // Check if the YZ value CCCD is written to and that the value is the appropriate length, i.e 2 bytes.
+    if ((p_evt_write->handle == p_run->yz_value_handles.cccd_handle)
+        && (p_evt_write->len == 2)
+       )
+    {
+
+        // CCCD written, call application event handler
+        if (p_run->evt_handler != NULL)
+        {
+            ble_run_evt_t evt;
+
+            if (ble_srv_is_notification_enabled(p_evt_write->data))
+            {
+                evt.evt_type = BLE_RUN_EVT_YZ_NOTIFICATION_ENABLED;
+            }
+            else
+            {
+                evt.evt_type = BLE_RUN_EVT_YZ_NOTIFICATION_DISABLED;
+            }
+            // Call the application event handler.
+            p_run->evt_handler(p_run, &evt);
+        }
+
+    }
+
 
 }
 
@@ -177,9 +203,9 @@ static uint32_t xz_value_char_add(ble_run_t * p_run, const ble_run_init_t * p_ru
 
     attr_char_value.p_uuid    = &ble_uuid;
     attr_char_value.p_attr_md = &attr_md;
-    attr_char_value.init_len  = sizeof(uint8_t);
+    attr_char_value.init_len  = sizeof(uint16_t);
     attr_char_value.init_offs = 0;
-    attr_char_value.max_len   = sizeof(uint8_t);
+    attr_char_value.max_len   = sizeof(uint16_t);
 
     err_code = sd_ble_gatts_characteristic_add(p_run->service_handle, &char_md,
                                                &attr_char_value,
@@ -216,15 +242,24 @@ static uint32_t yz_value_char_add(ble_run_t * p_run, const ble_run_init_t * p_ru
     ble_uuid_t          ble_uuid;
     ble_gatts_attr_md_t attr_md;
 
+    memset(&cccd_md, 0, sizeof(cccd_md));
+
+    //Read  operation on Cccd should be possible without authentication.
+    BLE_GAP_CONN_SEC_MODE_SET_OPEN(&cccd_md.read_perm);
+    //BLE_GAP_CONN_SEC_MODE_SET_OPEN(&cccd_md.write_perm);
+    
+    cccd_md.write_perm = p_run_init->yz_value_char_attr_md.cccd_write_perm;
+    cccd_md.vloc       = BLE_GATTS_VLOC_STACK;
+
     memset(&char_md, 0, sizeof(char_md));
 
-    char_md.char_props.read   = 1;
-    char_md.char_props.write  = 1;
-    char_md.char_props.notify = 0; 
+    char_md.char_props.read   = 0;
+    char_md.char_props.write  = 0;
+    char_md.char_props.notify = 1; 
     char_md.p_char_user_desc  = NULL;
     char_md.p_char_pf         = NULL;
     char_md.p_user_desc_md    = NULL;
-    char_md.p_cccd_md         = NULL; 
+    char_md.p_cccd_md         = &cccd_md; 
     char_md.p_sccd_md         = NULL;
 
     memset(&attr_md, 0, sizeof(attr_md));
@@ -243,9 +278,9 @@ static uint32_t yz_value_char_add(ble_run_t * p_run, const ble_run_init_t * p_ru
 
     attr_char_value.p_uuid    = &ble_uuid;
     attr_char_value.p_attr_md = &attr_md;
-    attr_char_value.init_len  = sizeof(uint8_t);
+    attr_char_value.init_len  = sizeof(uint16_t);
     attr_char_value.init_offs = 0;
-    attr_char_value.max_len   = sizeof(uint8_t);
+    attr_char_value.max_len   = sizeof(uint16_t);
 
     err_code = sd_ble_gatts_characteristic_add(p_run->service_handle, &char_md,
                                                &attr_char_value,
@@ -280,7 +315,6 @@ uint32_t ble_run_init(ble_run_t * p_run, const ble_run_init_t * p_run_init)
     // Add Run Service UUID
     ble_uuid128_t base_uuid = {RUN_SERVICE_UUID_BASE};
     err_code =  sd_ble_uuid_vs_add(&base_uuid, &p_run->uuid_type);
-    NRF_LOG_INFO("ble_run_init - sd_ble_uuid_vs_add result: %x.", err_code); 
     VERIFY_SUCCESS(err_code);
 
     NRF_LOG_INFO("From ble_run_init UUID added.");
@@ -299,15 +333,25 @@ uint32_t ble_run_init(ble_run_t * p_run, const ble_run_init_t * p_run_init)
     NRF_LOG_INFO("Added run service to GATTS.");
 
     // Add XZ Value characteristic
-    //return xz_value_char_add(p_run, p_run_init);
+    err_code = xz_value_char_add(p_run, p_run_init);
+    if (err_code != NRF_SUCCESS)
+    {
+        return err_code;
+    }
 
     // Add YZ Value characteristic
-    return yz_value_char_add(p_run, p_run_init);
+    err_code = yz_value_char_add(p_run, p_run_init);
+    if (err_code != NRF_SUCCESS)
+    {
+        return err_code;
+    }
+
+    return NRF_SUCCESS;
 
 }
 
 
-uint32_t ble_run_xz_value_update(ble_run_t * p_run, uint8_t xz_value){
+uint32_t ble_run_xz_value_update(ble_run_t * p_run, uint16_t xz_value){
     
     NRF_LOG_INFO("In ble_run_custom_value_update."); 
 
@@ -322,7 +366,7 @@ uint32_t ble_run_xz_value_update(ble_run_t * p_run, uint8_t xz_value){
     // Initialize value struct.
     memset(&gatts_value, 0, sizeof(gatts_value));
 
-    gatts_value.len     = sizeof(uint8_t);
+    gatts_value.len     = sizeof(uint16_t);
     gatts_value.offset  = 0;
     gatts_value.p_value = &xz_value;
 
@@ -343,6 +387,63 @@ uint32_t ble_run_xz_value_update(ble_run_t * p_run, uint8_t xz_value){
       memset(&hvx_params, 0, sizeof(hvx_params));
 
       hvx_params.handle = p_run->xz_value_handles.value_handle;
+      hvx_params.type   = BLE_GATT_HVX_NOTIFICATION;
+      hvx_params.offset = gatts_value.offset;
+      hvx_params.p_len  = &gatts_value.len;
+      hvx_params.p_data = gatts_value.p_value;
+
+      err_code = sd_ble_gatts_hvx(p_run->conn_handle, &hvx_params);
+
+      NRF_LOG_INFO("sd_ble_gatts_hvx result: %x.", err_code); 
+    }
+    else
+    {
+      err_code = NRF_ERROR_INVALID_STATE;
+      NRF_LOG_INFO("sd_ble_gatts_hvx result: NRF_ERROR_INVALID_STATE."); 
+    }
+
+    return err_code;
+
+
+}
+
+
+uint32_t ble_run_yz_value_update(ble_run_t * p_run, uint16_t yz_value){
+    
+    NRF_LOG_INFO("In ble_run_yz_value_update."); 
+
+    if (p_run == NULL)
+    {
+        return NRF_ERROR_NULL;
+    }
+
+    uint32_t err_code = NRF_SUCCESS;
+    ble_gatts_value_t gatts_value;
+
+    // Initialize value struct.
+    memset(&gatts_value, 0, sizeof(gatts_value));
+
+    gatts_value.len     = sizeof(uint16_t);
+    gatts_value.offset  = 0;
+    gatts_value.p_value = &yz_value;
+
+    // Update database.
+    err_code = sd_ble_gatts_value_set(p_run->conn_handle,
+                                        p_run->yz_value_handles.value_handle,
+                                        &gatts_value);
+    if (err_code != NRF_SUCCESS)
+    {
+        return err_code;
+    }
+
+    // Send value if connected and notifying.
+    if ((p_run->conn_handle != BLE_CONN_HANDLE_INVALID)) 
+    {
+      ble_gatts_hvx_params_t hvx_params;
+
+      memset(&hvx_params, 0, sizeof(hvx_params));
+
+      hvx_params.handle = p_run->yz_value_handles.value_handle;
       hvx_params.type   = BLE_GATT_HVX_NOTIFICATION;
       hvx_params.offset = gatts_value.offset;
       hvx_params.p_len  = &gatts_value.len;

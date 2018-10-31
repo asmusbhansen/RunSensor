@@ -25,17 +25,27 @@ NRF_SDH_BLE_OBSERVER(_name ## _obs,                                             
 
 #define RUN_SERVICE_UUID              0x0000
 #define XY_VALUE_CHAR_UUID            0x0001
-#define YZ_VALUE_CHAR_UUID            0x0001
+#define YZ_VALUE_CHAR_UUID            0x0002
 
 
 
 typedef enum
 {
-    BLE_RUN_EVT_NOTIFICATION_ENABLED,                             /**< Run value notification enabled event. */
-    BLE_RUN_EVT_NOTIFICATION_DISABLED,                            /**< Run value notification disabled event. */
+    BLE_RUN_EVT_XZ_NOTIFICATION_ENABLED,                             /**< Run value notification enabled event. */
+    BLE_RUN_EVT_XZ_NOTIFICATION_DISABLED,                            /**< Run value notification disabled event. */
+    BLE_RUN_EVT_YZ_NOTIFICATION_ENABLED,                          /**< YZ value notification enabled event. */
+    BLE_RUN_EVT_YZ_NOTIFICATION_DISABLED,                         /**< YZ value notification disabled event. */
     BLE_RUN_EVT_DISCONNECTED,
     BLE_RUN_EVT_CONNECTED
 } ble_run_evt_type_t;
+
+/**@Struct for managing which characteristic notifcations are enabled. */
+typedef struct
+{
+    uint8_t xz_value_notification_en;                                  
+    uint8_t yz_value_notification_en;    
+
+} ble_run_char_no_en;
 
 /**@brief Run Service event. */
 typedef struct
@@ -55,10 +65,10 @@ typedef void (*ble_run_evt_handler_t) (ble_run_t * p_run, ble_run_evt_t * p_evt)
 typedef struct
 {
     ble_run_evt_handler_t         evt_handler;                /**< Event handler to be called for handling events in the Run Service. */
-    uint8_t                       initial_xz_value;           /**< Initial xz value */
+    uint16_t                       initial_xz_value;           /**< Initial xz value */
     ble_srv_cccd_security_mode_t  xz_value_char_attr_md;      /**< Initial security level for XZ characteristics attribute */
     //New val
-    uint8_t                       initial_yz_value;           /**< Initial yz value */
+    uint16_t                      initial_yz_value;           /**< Initial yz value */
     ble_srv_cccd_security_mode_t  yz_value_char_attr_md;      /**< Initial security level for YZ characteristics attribute */
     //\New val
 } ble_run_init_t;
@@ -69,9 +79,9 @@ struct ble_run_s
 {
     ble_run_evt_handler_t         evt_handler;                    /**< Event handler to be called for handling events in the Run Service. */
     uint16_t                      service_handle;                 /**< Handle of Run Service (as provided by the BLE stack). */
-    ble_gatts_char_handles_t      xz_value_handles;               /**< Handles related to the Run Value characteristic. */
+    ble_gatts_char_handles_t      xz_value_handles;               /**< Handles related to the XZ Value characteristic. */
     //New val
-    ble_gatts_char_handles_t      yz_value_handles;               /**< Handles related to the Custom Value characteristic. */
+    ble_gatts_char_handles_t      yz_value_handles;               /**< Handles related to the YZ Value characteristic. */
     //\New val
     uint16_t                      conn_handle;                    /**< Handle of the current connection (as provided by the BLE stack, is BLE_CONN_HANDLE_INVALID if not in a connection). */
     uint8_t                       uuid_type; 
@@ -100,19 +110,34 @@ uint32_t ble_run_init(ble_run_t * p_run, const ble_run_init_t * p_run_init);
 void ble_run_on_ble_evt( ble_evt_t const * p_ble_evt, void * p_context);
 
 
-/**@brief Function for updating the Run value.
+/**@brief Function for updating the XZ value.
  *
  * @details The application calls this function when the Run value should be updated. If
  *          notification has been enabled, the Run value characteristic is sent to the client.
  *
  * @note 
  *       
- * @param[in]   p_run          Run Service structure.
- * @param[in]   Run value 
+ * @param[in]   p_run          XZ Service structure.
+ * @param[in]   xz value 
  *
  * @return      NRF_SUCCESS on success, otherwise an error code.
  */
 
-uint32_t ble_run_xz_value_update(ble_run_t * p_run, uint8_t xz_value);
+uint32_t ble_run_xz_value_update(ble_run_t * p_run, uint16_t xz_value);
+
+/**@brief Function for updating the YZ value.
+ *
+ * @details The application calls this function when the Run value should be updated. If
+ *          notification has been enabled, the Run value characteristic is sent to the client.
+ *
+ * @note 
+ *       
+ * @param[in]   p_run          YZ Service structure.
+ * @param[in]   yz value 
+ *
+ * @return      NRF_SUCCESS on success, otherwise an error code.
+ */
+
+uint32_t ble_run_yz_value_update(ble_run_t * p_run, uint16_t yz_value);
 
 
