@@ -58,7 +58,7 @@
 
 #define GYRO_SCALE       131
 
-#define UPDATE_LOOP_DT   1000
+#define UPDATE_LOOP_DT   1
 
 /* MPU TWI Output pins */
 #define MPU_TWI_SCL_PIN ARDUINO_SCL_PIN
@@ -138,6 +138,22 @@ uint32_t mpu9250_wake(void);
  */
 uint32_t nrf_drv_mpu_init(void);
 
+
+/**
+ * @brief TWI deactivation
+ */
+/**@brief Function to deactivate the TWI connection to the MPU9250.
+ *
+ * @details This function deactivates TWI connection
+ *
+ * @note 
+ *       
+ * @param[in]  none
+ *
+ * @return     MPU9250_NO_ERROR on success, otherwise an error code.
+ */
+void nrf_drv_mpu_deavtivate(void);
+
 /**@brief Function for reading MPU9250 sensors.
  *
  * @details This function reads MPU9250 sensors and returns the values as 16 bit signed integers
@@ -187,6 +203,18 @@ void print_dma_buffer();
  * @return     none
  */
 void start_twi_dma_transfer();
+
+ /**@brief Function for stopping TWI DMA transfer
+ *
+ * @details This function stops the DMA buffer
+ *
+ * @note 
+ *       
+ * @param[in]  none
+ *
+ * @return     none
+ */
+void stop_twi_dma_transfer();
 
 
  /**@brief Function for processing MPU data

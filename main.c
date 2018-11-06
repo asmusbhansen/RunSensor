@@ -98,7 +98,7 @@
 #include "mpu9250.h"
 
 
-#define DEVICE_NAME                     "RunSensor"                            /**< Name of device. Will be included in the advertising data. */
+#define DEVICE_NAME                     "RunSensor"                             /**< Name of device. Will be included in the advertising data. */
 #define MANUFACTURER_NAME               "SensorDan"                             /**< Manufacturer. Will be passed to Device Information Service. */
 #define APP_ADV_INTERVAL                300                                     /**< The advertising interval (in units of 0.625 ms. This value corresponds to 187.5 ms). */
 
@@ -292,7 +292,7 @@ static void notification_timeout_handler(void * p_context)
     mpu_xz_angle = ((int16_t)orientation.mpu_xz_angle) + 90;
     mpu_yz_angle = ((int16_t)orientation.mpu_yz_angle) + 90;
 
-    nrf_gpio_pin_toggle(LED_4); 
+     
 
     if(notifications_en.xz_value_notification_en){
       //m_xz_value++;
@@ -318,7 +318,7 @@ static void notification_timeout_handler(void * p_context)
 static void update_loop_timeout_handler(void * p_context)
 {
     UNUSED_PARAMETER(p_context);
-
+    nrf_gpio_pin_toggle(LED_4);
     process_mpu_data();
     
 }
@@ -482,9 +482,23 @@ static void on_run_evt(ble_run_t     * p_run_service,
             break;
         
         case BLE_RUN_EVT_CONNECTED:
+            
+            //Start the timer and the signal processing algorithm
+            err_code = app_timer_start(m_update_loop_timer_id, UPDATE_LOOP_INTERVAL, NULL);
+            APP_ERROR_CHECK(err_code);
+            
+            //Start TWI DMA transfer
+            start_twi_dma_transfer(); 
             break;
 
         case BLE_RUN_EVT_DISCONNECTED:
+              //Stop the update timer and the signal processing algorithm
+              err_code = app_timer_stop(m_update_loop_timer_id);
+              APP_ERROR_CHECK(err_code);
+
+              //Stop TWI DMA transfer
+              stop_twi_dma_transfer();
+
               break;
 
         default:
@@ -598,9 +612,8 @@ static void application_timers_start(void)
        ret_code_t err_code;
        err_code = app_timer_start(m_app_timer_id, TIMER_INTERVAL, NULL);
        APP_ERROR_CHECK(err_code); */
-    ret_code_t err_code;
-    err_code = app_timer_start(m_update_loop_timer_id, UPDATE_LOOP_INTERVAL, NULL);
-    APP_ERROR_CHECK(err_code);
+    
+    
 
 }
 
@@ -663,6 +676,7 @@ static void ble_evt_handler(ble_evt_t const * p_ble_evt, void * p_context)
 {
     ret_code_t err_code = NRF_SUCCESS;
     uint8_t dummy = 0;
+    NRF_LOG_INFO("BLE EVT!");
     switch (p_ble_evt->header.evt_id)
     {
         case BLE_GAP_EVT_DISCONNECTED:
@@ -963,19 +977,15 @@ int main(void)
 
     advertising_start(erase_bonds);
     
+    //Activate TWI to initiate MPU and then deactivate again
     nrf_drv_mpu_init();
     mpu9250_wake();
+    nrf_drv_mpu_deavtivate();
 
     // Setup PPI channel with event from TIMER compare and task GPIOTE pin toggle.
     mpu_twi_dma_init();
 
-    //Start TWI DMA transfer
-    start_twi_dma_transfer();
-
-    NRF_LOG_INFO("TWI Transfer started");
-  
-    //Start application timers
-    application_timers_start();
+     
 
     // Enter main loop.
     for (;;)

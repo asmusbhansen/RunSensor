@@ -25,9 +25,8 @@ uint8_t p_tx_buffer[1] = {ACCEL_XOUT_H};  // Reading accelerometer only
 /* Init struct for mpu orientation */
 MPU9250_orientation mpu_orientation = {0};
 
-
-/* DMA TIMER */
-static nrf_drv_timer_t timer = NRF_DRV_TIMER_INSTANCE(1);
+/* PPI Channel for link between timer and DMA */
+nrf_ppi_channel_t ppi_channel;
 
 /**
  * @brief TWI events handler.
@@ -74,6 +73,18 @@ uint32_t nrf_drv_mpu_init(void)
     NRF_LOG_INFO("TWI Init"); 
 
     return NRF_SUCCESS;
+}
+
+
+/**
+ * @brief TWI deactivation
+ */
+void nrf_drv_mpu_deavtivate(void)
+{
+ 
+    void nrf_drv_twi_disable(m_twi_instance);
+    nrf_drv_twi_uninit(&m_twi_instance);
+
 }
 
 /**
@@ -276,13 +287,31 @@ void read_mpu_sensors(mpu9250_sensor_values *sensor_values) {
  */
 void mpu_twi_dma_init()
 {
+    ret_code_t err_code;
+
     //Enable PPI
-    NRF_PPI->CHEN = (PPI_CHEN_CH0_Enabled << PPI_CHEN_CH0_Pos); 
-   
+    //NRF_PPI->CHEN = (PPI_CHEN_CH1_Enabled << PPI_CHEN_CH1_Pos); 
+    
+    err_code = nrf_drv_ppi_init();
+    if ((err_code != NRF_SUCCESS) && (err_code != NRF_ERROR_MODULE_ALREADY_INITIALIZED))
+    {
+        return NRF_ERROR_NO_MEM;
+    }
+    if(err_code == NRF_ERROR_MODULE_ALREADY_INITIALIZED){
+        NRF_LOG_INFO("PPI Already initialized."); 
+    }
+    else{
+        NRF_LOG_INFO("PPI initialized.");
+    }
+    
+    err_code = nrf_drv_ppi_channel_alloc(&ppi_channel);
+    APP_ERROR_CHECK(err_code);
+    NRF_LOG_INFO("PPI Channel allocated.");
+
     // GPIOTE init
-    nrf_gpio_cfg_output(LED_3);
+    nrf_gpio_cfg_output(LED_3); //GPIOTE for debug purposes
     // Configure GPIOTE channel 0 to toggle the PWM pin state
-    nrf_gpiote_task_configure(0, LED_3, NRF_GPIOTE_POLARITY_TOGGLE, NRF_GPIOTE_INITIAL_VALUE_LOW);
+    nrf_gpiote_task_configure(0, LED_3, NRF_GPIOTE_POLARITY_TOGGLE, NRF_GPIOTE_INITIAL_VALUE_LOW); //GPIOTE for debug purposes
 
 
     NRF_TIMER1->TASKS_STOP = 1; // Stop timer
@@ -294,11 +323,13 @@ void mpu_twi_dma_init()
     //NRF_TIMER1->INTENSET = TIMER_INTENSET_COMPARE0_Enabled << TIMER_INTENSET_COMPARE0_Pos; // Enable interrupt for compare 0 on timer1
     NRF_TIMER1->SHORTS = (TIMER_SHORTS_COMPARE0_CLEAR_Enabled << TIMER_SHORTS_COMPARE0_CLEAR_Pos);  //Timer is cleared on compare
 
+
     // Disable the TWIM module while we reconfigure it
     NRF_TWIM0->ENABLE = TWIM_ENABLE_ENABLE_Disabled << TWIM_ENABLE_ENABLE_Pos;
     NRF_TWIM0->SHORTS = 0;
     NVIC_DisableIRQ(SPI0_TWI0_IRQn);
     NVIC_ClearPendingIRQ(SPI0_TWI0_IRQn);
+
 
     NRF_TWIM0->PSEL.SCL = MPU_TWI_SCL_PIN;
     NRF_TWIM0->PSEL.SDA = MPU_TWI_SDA_PIN;
@@ -323,17 +354,14 @@ void mpu_twi_dma_init()
                         (TWIM_SHORTS_LASTRX_STOP_Enabled << TWIM_SHORTS_LASTRX_STOP_Pos);
 
 
-    //The EEP should be a timer, which generates an interrupt
-    //To do: Use timer to interrupt as EEP
-    //Set event end point(EEP) to timer1 events compare 0
-    NRF_PPI->CH[0].EEP = (uint32_t)&NRF_TIMER1->EVENTS_COMPARE[0];
+    //Gives the assigned PPI channel event end point(EEP) NRF_TIMER1->EVENTS_COMPARE[0] and Task end point(TEP) NRF_TWIM0->TASKS_STARTTX
+    err_code = nrf_drv_ppi_channel_assign(ppi_channel, (uint32_t)&NRF_TIMER1->EVENTS_COMPARE[0], (uint32_t)&NRF_TWIM0->TASKS_STARTTX);
+    APP_ERROR_CHECK(err_code);
+    NRF_LOG_INFO("PPI Channel assigned EEP and TEP.");
 
-    NRF_PPI->CH[0].TEP = (uint32_t)&NRF_GPIOTE->TASKS_OUT[0];
-
-    nrf_gpiote_task_enable(0);
-
-    //Starts the TWI transfer on EEP event
-    NRF_PPI->FORK[0].TEP = (uint32_t)&NRF_TWIM0->TASKS_STARTTX;
+    err_code = nrf_drv_ppi_channel_fork_assign(ppi_channel, (uint32_t)&NRF_GPIOTE->TASKS_OUT[0]);	
+    APP_ERROR_CHECK(err_code);
+    NRF_LOG_INFO("PPI Channel assigned GPIOTE evt as FORK.");
 
     // Enable the TWIM module
     NRF_TWIM0->ENABLE = TWIM_ENABLE_ENABLE_Enabled << TWIM_ENABLE_ENABLE_Pos;
@@ -364,11 +392,34 @@ void print_dma_buffer() {
 }
 
 
-/**@brief Function for printing DMA buffer.
+/**@brief Function for starting DMA transfer.
  */
 void start_twi_dma_transfer() {
+    //Enable PPI Channel
+    ret_code_t err_code; 
+    
+    err_code = nrf_drv_ppi_channel_enable(ppi_channel);
+    APP_ERROR_CHECK(err_code);
+    NRF_LOG_INFO("PPI Channel Enabled.");
+    
     // Start timer
     NRF_TIMER1->TASKS_START = 1;
+}
+
+/**@brief Function for stopping DMA transfer.
+ */
+void stop_twi_dma_transfer(){
+
+    //Enable PPI Channel
+    ret_code_t err_code; 
+    
+    err_code = nrf_drv_ppi_channel_disable(ppi_channel);
+    APP_ERROR_CHECK(err_code);
+    NRF_LOG_INFO("PPI Channel Disabled.");
+
+    // Stop timer
+    NRF_TIMER1->TASKS_STOP = 1;
+
 }
 
 
@@ -394,7 +445,7 @@ void process_mpu_data() {
 
     double filter_constant = 0.95;
     
-    measurements_available = (rx_counter - rx_buffer_offset)/14;
+    measurements_available = (rx_counter - rx_buffer_offset)/TWIM_RX_BUF_WIDTH;
 
     for(int i = 0;i <measurements_available; i++){
 
@@ -410,11 +461,21 @@ void process_mpu_data() {
         xz_angle = filter_constant*(xz_angle + gyro_Y * UPDATE_LOOP_DT/1000 ) + (1-filter_constant)*xz_angle_acc;
         yz_angle = filter_constant*(yz_angle + gyro_X * UPDATE_LOOP_DT/1000 ) + (1-filter_constant)*yz_angle_acc;
   
-        NRF_LOG_INFO("COMP XZ Angle: " NRF_LOG_FLOAT_MARKER "\r\n", NRF_LOG_FLOAT(xz_angle));
+
   
         //Decrease TWIM0 data pointer by TWIM_RX_BUF_WIDTH amount of bytes
         NRF_TWIM0->RXD.PTR = (uint32_t)(rx_counter - TWIM_RX_BUF_WIDTH);
 
+    }
+
+    if(counter > 100){
+        NRF_LOG_INFO("COMP XZ Angle: " NRF_LOG_FLOAT_MARKER "\r\n", NRF_LOG_FLOAT(xz_angle));
+        counter = 0;
+    }
+    counter++;
+
+    if(measurements_available > 50){
+        NRF_LOG_INFO("Measurements buffer half full!!.");
     }
 
     mpu_orientation.mpu_xz_angle = yz_angle;
