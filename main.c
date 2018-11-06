@@ -54,7 +54,7 @@
 #include <stdbool.h>
 #include <stdint.h>
 #include <string.h>
-#include <math.h>
+
 
 #include "nordic_common.h"
 #include "nrf.h"
@@ -77,6 +77,16 @@
 #include "nrf_ble_gatt.h"
 #include "nrf_ble_qwr.h"
 #include "nrf_pwr_mgmt.h"
+
+//DMA TIMER TEST
+
+#include "nrf_gpiote.h"
+#include "nrf_gpio.h"
+#include "boards.h"
+#include "nrf_drv_ppi.h"
+#include "nrf_drv_timer.h"
+#include "nrf_drv_gpiote.h"
+
 
 #include "nrf_log.h"
 #include "nrf_log_ctrl.h"
@@ -117,7 +127,6 @@
 #define DEAD_BEEF                       0xDEADBEEF                              /**< Value used as error code on stack dump, can be used to identify stack location on stack unwind. */
 
 #define NOTIFICATION_INTERVAL           APP_TIMER_TICKS(1000)
-#define UPDATE_LOOP_DT                  10
 #define UPDATE_LOOP_INTERVAL            APP_TIMER_TICKS(UPDATE_LOOP_DT)
 
 
@@ -133,9 +142,6 @@ static uint16_t m_conn_handle = BLE_CONN_HANDLE_INVALID;                        
 
 static uint16_t m_xz_value = 0;
 static uint16_t m_yz_value = 0;
-
-static double yz_angle = 0;
-static double xz_angle = 0;
 
 static ble_run_char_no_en notifications_en; 
 
@@ -276,18 +282,27 @@ static void notification_timeout_handler(void * p_context)
 {
     UNUSED_PARAMETER(p_context);
     ret_code_t err_code;   
+    int16_t mpu_xz_angle;
+    int16_t mpu_yz_angle;
+    
+    MPU9250_orientation orientation;
+
+    get_mpu_orientation(&orientation);
+
+    mpu_xz_angle = ((int16_t)orientation.mpu_xz_angle) + 90;
+    mpu_yz_angle = ((int16_t)orientation.mpu_yz_angle) + 90;
 
     nrf_gpio_pin_toggle(LED_4); 
 
     if(notifications_en.xz_value_notification_en){
       //m_xz_value++;
-      err_code = ble_run_xz_value_update(&m_run, m_xz_value);
+      err_code = ble_run_xz_value_update(&m_run, mpu_xz_angle);
       APP_ERROR_CHECK(err_code);
     }
     
     if(notifications_en.yz_value_notification_en){
       //m_yz_value++;
-      err_code = ble_run_yz_value_update(&m_run, m_yz_value);
+      err_code = ble_run_yz_value_update(&m_run, mpu_yz_angle);
       APP_ERROR_CHECK(err_code);
     }
     
@@ -303,45 +318,8 @@ static void notification_timeout_handler(void * p_context)
 static void update_loop_timeout_handler(void * p_context)
 {
     UNUSED_PARAMETER(p_context);
-    ret_code_t err_code;   
-    mpu9250_sensor_values sensor_values = {0};
-    double xz_angle_acc = 0;
-    double yz_angle_acc = 0;
-    double gyro_X = 0;
-    double gyro_Y = 0;
 
-    static int counter = 0;
-
-    double filter_constant = 0.95;
-
-    read_mpu_sensors(&sensor_values);
-    
-    //NRF_LOG_INFO("ACC X:  %d.", sensor_values.accl_X);
-    //NRF_LOG_INFO("ACC Y:  %d.", sensor_values.accl_Y);
-    //NRF_LOG_INFO("ACC Z:  %d.", sensor_values.accl_Z);
-
-    xz_angle_acc = atan2((double)sensor_values.accl_X,(double)sensor_values.accl_Z)*180/3.1415;
-    yz_angle_acc = atan2((double)sensor_values.accl_Y,(double)sensor_values.accl_Z)*180/3.1415;
-    
-
-    gyro_Y = (double)(-1*sensor_values.gyro_Y) / 131;
-    gyro_X = (double)(-1*sensor_values.gyro_X) / 131;
-
-    xz_angle = filter_constant*(xz_angle + gyro_Y * UPDATE_LOOP_DT/1000 ) + (1-filter_constant)*xz_angle_acc;
-    yz_angle = filter_constant*(yz_angle + gyro_X * UPDATE_LOOP_DT/1000 ) + (1-filter_constant)*yz_angle_acc;
-
-    m_xz_value = (int)xz_angle + 90;
-    m_yz_value = (int)yz_angle + 90;
-
-    counter++;
-    if(counter > 20)
-    {
-        NRF_LOG_INFO("ACC XZ Angle:  %d.", xz_angle_acc);
-        //NRF_LOG_INFO("GYRO Y:  %d.", gyro_Y);
-        NRF_LOG_INFO("Gyro Y: " NRF_LOG_FLOAT_MARKER "\r\n", NRF_LOG_FLOAT(gyro_Y*0.01));
-        NRF_LOG_INFO("COMP XZ Angle: " NRF_LOG_FLOAT_MARKER "\r\n", NRF_LOG_FLOAT(xz_angle));
-        counter = 0;
-    }
+    process_mpu_data();
     
 }
 
@@ -620,6 +598,9 @@ static void application_timers_start(void)
        ret_code_t err_code;
        err_code = app_timer_start(m_app_timer_id, TIMER_INTERVAL, NULL);
        APP_ERROR_CHECK(err_code); */
+    ret_code_t err_code;
+    err_code = app_timer_start(m_update_loop_timer_id, UPDATE_LOOP_INTERVAL, NULL);
+    APP_ERROR_CHECK(err_code);
 
 }
 
@@ -947,17 +928,22 @@ static void advertising_start(bool erase_bonds)
     }
 }
 
-
 /**@brief Function for application main entry.
  */
 int main(void)
 {
+
     bool erase_bonds;
     ret_code_t err_code;
 
     //MPU9250 sensor values struct
     mpu9250_sensor_values sensor_values;
+    
+    //This may already be done in ble_init
+    //err_code = nrf_drv_gpiote_init();
+    //APP_ERROR_CHECK(err_code);
 
+   
     // Initialize.
     log_init();
     timers_init();
@@ -980,15 +966,24 @@ int main(void)
     nrf_drv_mpu_init();
     mpu9250_wake();
 
-    //Start update loop timer
-    err_code = app_timer_start(m_update_loop_timer_id, UPDATE_LOOP_INTERVAL, NULL);
-    APP_ERROR_CHECK(err_code);
+    // Setup PPI channel with event from TIMER compare and task GPIOTE pin toggle.
+    mpu_twi_dma_init();
 
+    //Start TWI DMA transfer
+    start_twi_dma_transfer();
+
+    NRF_LOG_INFO("TWI Transfer started");
+  
+    //Start application timers
+    application_timers_start();
 
     // Enter main loop.
     for (;;)
     {
         idle_state_handle();
+
+        //print_dma_buffer();
+        //process_mpu_data();
         //read_mpu_sensors(&sensor_values);
         //NRF_LOG_INFO("ACC Z:  %d.", sensor_values.accl_Z);
     }

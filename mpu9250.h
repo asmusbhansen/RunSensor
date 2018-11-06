@@ -3,6 +3,12 @@
 #include "nrf_gpio.h"
 #include "boards.h"
 #include "nrf_log.h"
+#include "nrf_gpiote.h"
+#include "nrf_gpio.h"
+#include "boards.h"
+#include "nrf_drv_ppi.h"
+#include "nrf_drv_timer.h"
+#include "nrf_drv_gpiote.h"
 
 /* For enabling TWI set the same TWI settings as in the sdk_config of the twi_sensor example and add both nrfx_twi.c and nrf_drv_twi.c to the project */ 
 
@@ -48,9 +54,11 @@
 #define GYRO_ZOUT_H      0x47
 #define GYRO_ZOUT_L      0x48
 
-
 #define MPU_TWI_BUFFER_SIZE       14
 
+#define GYRO_SCALE       131
+
+#define UPDATE_LOOP_DT   1000
 
 /* MPU TWI Output pins */
 #define MPU_TWI_SCL_PIN ARDUINO_SCL_PIN
@@ -65,10 +73,14 @@
 #define MPU9250_NO_ERROR          0x00 + MPU9250_ERROR_CODE_OFFSET
 #define MPU9250_NO_CONNECTION     0x01 + MPU9250_ERROR_CODE_OFFSET
 
-
+#define PI_M             3.1415
 
 /* Mode for MPU9250. */
 #define NORMAL_MODE 0U
+
+/* RAM Space for TWI DMA transfers*/ 
+#define TWIM_RX_BUF_LENGTH  100
+#define TWIM_RX_BUF_WIDTH   MPU_TWI_BUFFER_SIZE
 
 
 /* Struct for storing MPU9250 sensor values */
@@ -83,6 +95,22 @@ typedef struct
     int16_t gyro_Z;
 
 }mpu9250_sensor_values;
+
+/* Struct for storing MPU9250 orientation */
+typedef struct 
+{
+    double mpu_xz_angle;                                  
+    double mpu_yz_angle;
+
+}MPU9250_orientation;
+
+/* Define a type with a two dimensioanal array, TWIM_RX_BUF_WIDTH wide and TWIM_RX_BUF_LENGTH long, holding a list of MPU sensor data */
+typedef struct ArrayList
+{
+    uint8_t buffer[TWIM_RX_BUF_WIDTH];
+}array_list_t;
+
+
 
 /**@brief Function for waking up the MPU9250.
  *
@@ -121,3 +149,79 @@ uint32_t nrf_drv_mpu_init(void);
  * @return     none
  */
 void read_mpu_sensors(mpu9250_sensor_values *sensor_values);
+
+
+ /**@brief Function for initializing TWI DMA transfer
+ *
+ * @details This function starts the TWI DMA transfer continously
+ *
+ * @note 
+ *       
+ * @param[in]  none
+ *
+ * @return     none
+ */
+void mpu_twi_dma_init();
+
+ /**@brief Function for printing TWI DMA buffer
+ *
+ * @details This function prints the DMA buffer
+ *
+ * @note 
+ *       
+ * @param[in]  none
+ *
+ * @return     none
+ */
+void print_dma_buffer();
+
+
+ /**@brief Function for starting TWI DMA transfer
+ *
+ * @details This function starts the DMA buffer
+ *
+ * @note 
+ *       
+ * @param[in]  none
+ *
+ * @return     none
+ */
+void start_twi_dma_transfer();
+
+
+ /**@brief Function for processing MPU data
+ *
+ * @details This function procceses the MPU data readings
+ *
+ * @note 
+ *       
+ * @param[in]  none
+ *
+ * @return     none
+ */
+void process_mpu_data();
+
+ /**@brief Function for reading MPU data
+ *
+ * @details This function reading the MPU data
+ *
+ * @note 
+ *       
+ * @param[in]  Struct for the MPU values and a relative location of the data in RAM
+ *
+ * @return     none
+ */
+void read_mpu_data_RAM(mpu9250_sensor_values *sensor_values, uint32_t location);
+
+
+/**@brief Function for for obtaining MPU orientation struct
+ *
+ * @details This function returns a copy of the orientation struct
+ *
+ * @note 
+ *       
+ * @param[in]  Struct for the MPU orientation
+ *
+ * @return     none
+ */
+void get_mpu_orientation(MPU9250_orientation * orientation);
