@@ -127,7 +127,7 @@
 #define DEAD_BEEF                       0xDEADBEEF                              /**< Value used as error code on stack dump, can be used to identify stack location on stack unwind. */
 
 #define NOTIFICATION_INTERVAL           APP_TIMER_TICKS(1000)
-#define UPDATE_LOOP_INTERVAL            APP_TIMER_TICKS(UPDATE_LOOP_DT)
+#define UPDATE_LOOP_INTERVAL            APP_TIMER_TICKS(250)
 
 
 APP_TIMER_DEF(m_notification_timer_id);                                         /**< Create application timer ID */
@@ -338,7 +338,7 @@ static void timers_init(void)
     err_code = app_timer_create(&m_notification_timer_id, APP_TIMER_MODE_REPEATED, notification_timeout_handler);
     APP_ERROR_CHECK(err_code);
 
-    //Create timer for sensor sampling
+    //Create timer for processing sensor samples
     err_code = app_timer_create(&m_update_loop_timer_id, APP_TIMER_MODE_REPEATED, update_loop_timeout_handler);
     APP_ERROR_CHECK(err_code);
 
@@ -945,6 +945,7 @@ static void advertising_start(bool erase_bonds)
 /**@brief Function for application main entry.
  */
 int main(void)
+
 {
 
     bool erase_bonds;

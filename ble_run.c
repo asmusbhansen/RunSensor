@@ -318,7 +318,6 @@ uint32_t ble_run_init(ble_run_t * p_run, const ble_run_init_t * p_run_init)
     VERIFY_SUCCESS(err_code);
 
     NRF_LOG_INFO("From ble_run_init UUID added.");
-
     ble_uuid.type = p_run->uuid_type;
     ble_uuid.uuid = RUN_SERVICE_UUID;
 

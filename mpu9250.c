@@ -17,7 +17,7 @@ uint8_t twi_tx_buffer[MPU_TWI_BUFFER_SIZE];
 static const nrf_drv_twi_t m_twi_instance = NRF_DRV_TWI_INSTANCE(TWI_INSTANCE_ID);
 
 /* Number of readings */
-array_list_t p_rx_buffer[TWIM_RX_BUF_LENGTH];
+array_list_t p_rx_buffer[2*TWIM_RX_BUF_LENGTH];
 
 /* Declare a simple TX buffer holding the first register in MPU we want to read from. */
 uint8_t p_tx_buffer[1] = {ACCEL_XOUT_H};  // Reading accelerometer only
@@ -289,9 +289,6 @@ void mpu_twi_dma_init()
 {
     ret_code_t err_code;
 
-    //Enable PPI
-    //NRF_PPI->CHEN = (PPI_CHEN_CH1_Enabled << PPI_CHEN_CH1_Pos); 
-    
     err_code = nrf_drv_ppi_init();
     if ((err_code != NRF_SUCCESS) && (err_code != NRF_ERROR_MODULE_ALREADY_INITIALIZED))
     {
@@ -440,46 +437,85 @@ void process_mpu_data() {
     double gyro_Y = 0;
     int16_t x;
     int16_t z;
+    int buffer_offset = 0;
 
     static int counter = 0;
 
     double filter_constant = 0.95;
+
+    //In the first iteration the data should be read intp the array p_rx_buffer from index 0. Before processing the data, we instruct the DMA to load data into the buffer from index TWIM_RX_BUF_LENGTH for processing in next iteration
+    //The next iteration will read the data from the offset posistion in the buffer, but first make sure that the next iteration the data will be read into the buffer from position 0.
+
+    //NRF_LOG_INFO("Rx Counter at: %d", rx_counter);
     
-    measurements_available = (rx_counter - rx_buffer_offset)/TWIM_RX_BUF_WIDTH;
 
-    for(int i = 0;i <measurements_available; i++){
+    //Determine if the buffer is offset
+    //The data buffer is split into two part of length TWIM_RX_BUF_LENGTH * TWIM_RX_BUF_WIDTH size each. 
+    //If the current counter is higher half of the total buffer, the buffer is offset
+    if(rx_buffer_offset + sizeof(p_rx_buffer)/2 < rx_counter){
+      buffer_offset = 1;
+      //NRF_LOG_INFO("Data is offset!.");
+    }
+    else{
+      //NRF_LOG_INFO("Data is not offset!.");
+    }
 
-        read_mpu_data_RAM(&sensor_values, i);
+    //NRF_LOG_INFO("buffer_offset*sizeof(p_rx_buffer)/2: %ld", buffer_offset*sizeof(p_rx_buffer)/2);
 
-        xz_angle_acc = atan2((double)sensor_values.accl_X,(double)sensor_values.accl_Z)*180/PI_M;
-        yz_angle_acc = atan2((double)sensor_values.accl_Y,(double)sensor_values.accl_Z)*180/PI_M;
+    //We want to calculate the samples available. Rx_counter is where the last reading was put into, rx_buffer offset is where the first reading can be put into. 
+    //If the buffer is offset, we start halfway into the buffer i.e. sizeof(p_rx_buffer)/2 bytes into the buffer.
+    //Hence, when calculating the measurements_available we do no consider the first part of the buffer and subtract sizeof(p_rx_buffer
+    measurements_available = (rx_counter - rx_buffer_offset)/TWIM_RX_BUF_WIDTH - buffer_offset*sizeof(p_rx_buffer)/2;
 
-        gyro_Y = (double)(-1*sensor_values.gyro_Y) / GYRO_SCALE;
-        gyro_X = (double)(-1*sensor_values.gyro_X) / GYRO_SCALE;
+    //NRF_LOG_INFO("Measurements available: %d", measurements_available);
 
-        //Complementary filter
-        xz_angle = filter_constant*(xz_angle + gyro_Y * UPDATE_LOOP_DT/1000 ) + (1-filter_constant)*xz_angle_acc;
-        yz_angle = filter_constant*(yz_angle + gyro_X * UPDATE_LOOP_DT/1000 ) + (1-filter_constant)*yz_angle_acc;
+    //Only process data if the buffer is at least half full
+    if(measurements_available >= TWIM_RX_BUF_LENGTH/2) {
+    
+      //Instruct the DMA Where to put data next. If the buffer was determined to be offset we want to put data into index 0 from next iteration
+//      NRF_LOG_INFO("Start buffer addr: %d", rx_buffer_offset);
+//      NRF_LOG_INFO("Next iteration data will be put in from addr: %d",  (uint32_t)(rx_buffer_offset + (1 - buffer_offset) * buffer_offset*sizeof(p_rx_buffer)/2));
+  
+      NRF_TWIM0->RXD.PTR = (uint32_t)(rx_buffer_offset + (1 - buffer_offset) * buffer_offset*sizeof(p_rx_buffer)/2);
+      
+      //NRF_LOG_INFO("Reading data from buffer, place: %d", 0 + buffer_offset * TWIM_RX_BUF_LENGTH);
+  
+      //Begin processing the data
+      for(int i = 0;i <measurements_available; i++){
+
+          //When reading data from the buffer in RAM, we offset by half the buffer if the buffer is determined to be offset.
+          
+          read_mpu_data_RAM(&sensor_values, i + buffer_offset * TWIM_RX_BUF_LENGTH);
+
+          xz_angle_acc = atan2((double)sensor_values.accl_X,(double)sensor_values.accl_Z)*180/PI_M;
+          yz_angle_acc = atan2((double)sensor_values.accl_Y,(double)sensor_values.accl_Z)*180/PI_M;
+
+          gyro_Y = (double)(-1*sensor_values.gyro_Y) / GYRO_SCALE;
+          gyro_X = (double)(-1*sensor_values.gyro_X) / GYRO_SCALE;
+
+          //Complementary filter
+          xz_angle = filter_constant*(xz_angle + gyro_Y * UPDATE_LOOP_DT/1000 ) + (1-filter_constant)*xz_angle_acc;
+          yz_angle = filter_constant*(yz_angle + gyro_X * UPDATE_LOOP_DT/1000 ) + (1-filter_constant)*yz_angle_acc;
   
 
   
-        //Decrease TWIM0 data pointer by TWIM_RX_BUF_WIDTH amount of bytes
-        NRF_TWIM0->RXD.PTR = (uint32_t)(rx_counter - TWIM_RX_BUF_WIDTH);
+          
+
+      }
+
+      if(counter >= 1){
+          NRF_LOG_INFO("Data was offset: %d", buffer_offset);
+          NRF_LOG_INFO("Was reading data from buffer, place: %d", 0 + buffer_offset * TWIM_RX_BUF_LENGTH);
+          NRF_LOG_INFO("COMP XZ Angle: " NRF_LOG_FLOAT_MARKER "\r\n", NRF_LOG_FLOAT(xz_angle_acc));
+          counter = 0;
+      }
+      counter++;
+      
+
+      mpu_orientation.mpu_xz_angle = yz_angle;
+      mpu_orientation.mpu_yz_angle = xz_angle;
 
     }
-
-    if(counter > 100){
-        NRF_LOG_INFO("COMP XZ Angle: " NRF_LOG_FLOAT_MARKER "\r\n", NRF_LOG_FLOAT(xz_angle));
-        counter = 0;
-    }
-    counter++;
-
-    if(measurements_available > 50){
-        NRF_LOG_INFO("Measurements buffer half full!!.");
-    }
-
-    mpu_orientation.mpu_xz_angle = yz_angle;
-    mpu_orientation.mpu_yz_angle = xz_angle;
 
 }
 

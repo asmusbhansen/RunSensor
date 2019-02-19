@@ -58,7 +58,7 @@
 
 #define GYRO_SCALE       131
 
-#define UPDATE_LOOP_DT   1
+#define UPDATE_LOOP_DT   5
 
 /* MPU TWI Output pins */
 #define MPU_TWI_SCL_PIN ARDUINO_SCL_PIN
