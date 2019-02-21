@@ -61,8 +61,8 @@
 #define UPDATE_LOOP_DT   5
 
 /* MPU TWI Output pins */
-#define MPU_TWI_SCL_PIN ARDUINO_SCL_PIN
-#define MPU_TWI_SDA_PIN ARDUINO_SDA_PIN
+#define MPU_TWI_SCL_PIN 17//ARDUINO_SCL_PIN / 17
+#define MPU_TWI_SDA_PIN 18//ARDUINO_SDA_PIN / 18
 
 /* Timeout for MPU9250 */
 #define MPU_TWI_TIMEOUT 	  10000 
@@ -82,6 +82,11 @@
 #define TWIM_RX_BUF_LENGTH  100
 #define TWIM_RX_BUF_WIDTH   MPU_TWI_BUFFER_SIZE
 
+/* DFT length */
+#define DFT_LEN 2048
+#define COMPUTE_DFT_START 1
+#define COMPUTE_DFT_BINS 60
+
 
 /* Struct for storing MPU9250 sensor values */
 typedef struct 
@@ -99,8 +104,8 @@ typedef struct
 /* Struct for storing MPU9250 orientation */
 typedef struct 
 {
-    double mpu_xz_angle;                                  
-    double mpu_yz_angle;
+    float mpu_xz_angle;                                  
+    float mpu_yz_angle;
 
 }MPU9250_orientation;
 
@@ -109,7 +114,6 @@ typedef struct ArrayList
 {
     uint8_t buffer[TWIM_RX_BUF_WIDTH];
 }array_list_t;
-
 
 
 /**@brief Function for waking up the MPU9250.
@@ -253,3 +257,9 @@ void read_mpu_data_RAM(mpu9250_sensor_values *sensor_values, uint32_t location);
  * @return     none
  */
 void get_mpu_orientation(MPU9250_orientation * orientation);
+
+/** @Brief Function for retrieving a value from a circular buffer*/
+float get_value_c_buffer(float * buf, uint16_t buffer_len, uint16_t newest_idx, uint16_t get_idx);
+
+/** @Brief Function for setting a value in a circular buffer*/
+uint16_t set_value_c_buffer(float * buf, uint16_t buffer_len, float val);

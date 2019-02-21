@@ -28,6 +28,16 @@ MPU9250_orientation mpu_orientation = {0};
 /* PPI Channel for link between timer and DMA */
 nrf_ppi_channel_t ppi_channel;
 
+/* Buffer for angular estimates*/
+uint16_t xz_angle_buffer_index = 0;
+uint16_t yz_angle_buffer_index = 0; 
+float xz_angle_buffer[DFT_LEN+1] = {0};
+float yz_angle_buffer[DFT_LEN+1] = {0};
+
+/* DFT Array */
+float dft_xz_re[DFT_LEN] = {0};
+float dft_xz_im[DFT_LEN] = {0};
+
 /**
  * @brief TWI events handler.
  */
@@ -208,7 +218,8 @@ uint32_t mpu9250_wake(void)
 
     //Set low sensitivity
     data[0] = data[0] & 0b11100111;
-    
+    data[0] = data[0] | 0b00001000;
+
     err_code = nrf_drv_mpu_write_registers(GYRO_CONFIG, data, 1);
     APP_ERROR_CHECK(err_code);
 
@@ -429,19 +440,24 @@ void process_mpu_data() {
     uint32_t rx_buffer_offset = (uint32_t)&p_rx_buffer;
     uint32_t measurements_available = 0;
     mpu9250_sensor_values sensor_values = {0};
-    double yz_angle = mpu_orientation.mpu_xz_angle;
-    double xz_angle = mpu_orientation.mpu_yz_angle;
-    double xz_angle_acc = 0;
-    double yz_angle_acc = 0;
-    double gyro_X = 0;
-    double gyro_Y = 0;
+    float yz_angle = mpu_orientation.mpu_xz_angle;
+    float xz_angle = mpu_orientation.mpu_yz_angle;
+    float xz_angle_acc = 0;
+    float yz_angle_acc = 0;
+    float gyro_X = 0;
+    float gyro_Y = 0;
     int16_t x;
     int16_t z;
     int buffer_offset = 0;
 
+    //DFT
+    float max_dft = 0;
+    uint16_t max_dft_idx = 0;
+
     static int counter = 0;
 
-    double filter_constant = 0.95;
+    float filter_constant = 0.98;
+
 
     //In the first iteration the data should be read intp the array p_rx_buffer from index 0. Before processing the data, we instruct the DMA to load data into the buffer from index TWIM_RX_BUF_LENGTH for processing in next iteration
     //The next iteration will read the data from the offset posistion in the buffer, but first make sure that the next iteration the data will be read into the buffer from position 0.
@@ -487,29 +503,58 @@ void process_mpu_data() {
           
           read_mpu_data_RAM(&sensor_values, i + buffer_offset * TWIM_RX_BUF_LENGTH);
 
-          xz_angle_acc = atan2((double)sensor_values.accl_X,(double)sensor_values.accl_Z)*180/PI_M;
-          yz_angle_acc = atan2((double)sensor_values.accl_Y,(double)sensor_values.accl_Z)*180/PI_M;
+          xz_angle_acc = atan2((float)sensor_values.accl_X,(float)sensor_values.accl_Z)*180/PI_M;
+          yz_angle_acc = atan2((float)sensor_values.accl_Y,(float)sensor_values.accl_Z)*180/PI_M;
 
-          gyro_Y = (double)(-1*sensor_values.gyro_Y) / GYRO_SCALE;
-          gyro_X = (double)(-1*sensor_values.gyro_X) / GYRO_SCALE;
+          gyro_Y = (float)(-1*sensor_values.gyro_Y) / GYRO_SCALE;
+          gyro_X = (float)(-1*sensor_values.gyro_X) / GYRO_SCALE;
 
           //Complementary filter
           xz_angle = filter_constant*(xz_angle + gyro_Y * UPDATE_LOOP_DT/1000 ) + (1-filter_constant)*xz_angle_acc;
           yz_angle = filter_constant*(yz_angle + gyro_X * UPDATE_LOOP_DT/1000 ) + (1-filter_constant)*yz_angle_acc;
-  
 
-  
+          //DFT
+          //Put new angle into buffer
+          xz_angle_buffer_index = set_value_c_buffer(xz_angle_buffer, DFT_LEN+1, xz_angle);
+          //Find old angle
+          float old_xz_angle = get_value_c_buffer(xz_angle_buffer, DFT_LEN, xz_angle_buffer_index, DFT_LEN);
           
+          //Perform sliding window DFT
+          
+          max_dft = 0;
+          max_dft_idx = 0;
+
+          for(int j = COMPUTE_DFT_START; j < COMPUTE_DFT_START + COMPUTE_DFT_BINS; j++){
+            
+            float dft_pwr = 0;
+
+            dft_xz_re[j] = (dft_xz_re[j] + xz_angle - old_xz_angle) * cos(2*PI_M*j/DFT_LEN);
+            dft_xz_im[j] = (dft_xz_im[j] + xz_angle - old_xz_angle) * sin(2*PI_M*j/DFT_LEN);
+
+            dft_pwr = dft_xz_re[j] * dft_xz_re[j] + dft_xz_im[j] * dft_xz_im[j];
+
+            if(dft_pwr > max_dft){
+                max_dft = dft_pwr;
+                max_dft_idx = j;
+            }
+
+
+          }
+          
+          if(counter >= 50){
+          
+              NRF_LOG_INFO("Max DFT idx: %d", max_dft_idx);
+              //NRF_LOG_INFO("Was reading data from buffer, place: %d", 0 + buffer_offset * TWIM_RX_BUF_LENGTH);
+              NRF_LOG_INFO("COMP XZ Angle: " NRF_LOG_FLOAT_MARKER "\r\n", NRF_LOG_FLOAT(xz_angle));
+
+              counter = 0;
+         
+          }
+          counter++;
+
+ 
 
       }
-
-      if(counter >= 1){
-          NRF_LOG_INFO("Data was offset: %d", buffer_offset);
-          NRF_LOG_INFO("Was reading data from buffer, place: %d", 0 + buffer_offset * TWIM_RX_BUF_LENGTH);
-          NRF_LOG_INFO("COMP XZ Angle: " NRF_LOG_FLOAT_MARKER "\r\n", NRF_LOG_FLOAT(xz_angle_acc));
-          counter = 0;
-      }
-      counter++;
       
 
       mpu_orientation.mpu_xz_angle = yz_angle;
@@ -544,4 +589,38 @@ void get_mpu_orientation(MPU9250_orientation * orientation){
 
     memcpy(orientation, &mpu_orientation, sizeof(MPU9250_orientation));
 
+}
+
+
+/** @Brief Function for retrieving a value from a circular buffer*/
+float get_value_c_buffer(float * buf, uint16_t buffer_len, uint16_t newest_idx, uint16_t get_idx){
+
+  //If the newest entry in the circular buffer is at index n and the wanted value is m samples behind we wrap around
+  if(get_idx > newest_idx){
+    get_idx -= newest_idx;
+    //NRF_LOG_INFO("C buf idx read: %d", buffer_len-get_idx);
+    return buf[buffer_len-get_idx];
+  }
+  else{
+    //NRF_LOG_INFO("C buf idx read: %d", newest_idx-get_idx);
+    return buf[newest_idx-get_idx];
+  }
+}
+
+/** @Brief Function for setting a value in a circular buffer*/
+uint16_t set_value_c_buffer(float * buf, uint16_t buffer_len, float val){
+  
+  static uint16_t buffer_index = 0;
+   
+  if(buffer_index >= buffer_len){
+    buffer_index = 0;
+  }
+
+  //NRF_LOG_INFO("C buf idx write: %d", buffer_index);
+  
+  buf[buffer_index] = val;
+
+  buffer_index += 1;
+
+  return buffer_index;
 }

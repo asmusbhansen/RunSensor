@@ -126,8 +126,8 @@
 
 #define DEAD_BEEF                       0xDEADBEEF                              /**< Value used as error code on stack dump, can be used to identify stack location on stack unwind. */
 
-#define NOTIFICATION_INTERVAL           APP_TIMER_TICKS(1000)
-#define UPDATE_LOOP_INTERVAL            APP_TIMER_TICKS(250)
+#define NOTIFICATION_INTERVAL           APP_TIMER_TICKS(250)
+#define UPDATE_LOOP_INTERVAL            APP_TIMER_TICKS(100)
 
 
 APP_TIMER_DEF(m_notification_timer_id);                                         /**< Create application timer ID */
