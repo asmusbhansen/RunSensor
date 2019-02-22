@@ -58,7 +58,7 @@
 
 #define GYRO_SCALE       131
 
-#define UPDATE_LOOP_DT   5
+#define UPDATE_LOOP_DT   100
 
 /* MPU TWI Output pins */
 #define MPU_TWI_SCL_PIN 17//ARDUINO_SCL_PIN / 17
@@ -79,7 +79,7 @@
 #define NORMAL_MODE 0U
 
 /* RAM Space for TWI DMA transfers*/ 
-#define TWIM_RX_BUF_LENGTH  100
+#define TWIM_RX_BUF_LENGTH  2
 #define TWIM_RX_BUF_WIDTH   MPU_TWI_BUFFER_SIZE
 
 /* DFT length */

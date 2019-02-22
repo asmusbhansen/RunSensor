@@ -442,6 +442,8 @@ void process_mpu_data() {
     mpu9250_sensor_values sensor_values = {0};
     float yz_angle = mpu_orientation.mpu_xz_angle;
     float xz_angle = mpu_orientation.mpu_yz_angle;
+    static float yz_angle_avg = 0;
+    static float xz_angle_avg = 0;
     float xz_angle_acc = 0;
     float yz_angle_acc = 0;
     float gyro_X = 0;
@@ -449,6 +451,9 @@ void process_mpu_data() {
     int16_t x;
     int16_t z;
     int buffer_offset = 0;
+
+    static int spoof_angle = 0;
+    static int spoof_up = 0;
 
     //DFT
     float max_dft = 0;
@@ -500,7 +505,7 @@ void process_mpu_data() {
       for(int i = 0;i <measurements_available; i++){
 
           //When reading data from the buffer in RAM, we offset by half the buffer if the buffer is determined to be offset.
-          
+          //NRF_LOG_INFO("Process data");
           read_mpu_data_RAM(&sensor_values, i + buffer_offset * TWIM_RX_BUF_LENGTH);
 
           xz_angle_acc = atan2((float)sensor_values.accl_X,(float)sensor_values.accl_Z)*180/PI_M;
@@ -513,11 +518,29 @@ void process_mpu_data() {
           xz_angle = filter_constant*(xz_angle + gyro_Y * UPDATE_LOOP_DT/1000 ) + (1-filter_constant)*xz_angle_acc;
           yz_angle = filter_constant*(yz_angle + gyro_X * UPDATE_LOOP_DT/1000 ) + (1-filter_constant)*yz_angle_acc;
 
-          //DFT
+          //Calculate spoof angle
+          if(spoof_angle > 10){
+              spoof_up = 0;
+          }
+          else if (spoof_angle < -10){
+              spoof_up = 1;
+          }
+          if(spoof_up == 1){
+              spoof_angle += 1;
+          }
+          else{
+              spoof_angle -= 1;
+          }
+
+          //DFT          
           //Put new angle into buffer
-          xz_angle_buffer_index = set_value_c_buffer(xz_angle_buffer, DFT_LEN+1, xz_angle);
+          xz_angle_buffer_index = set_value_c_buffer(xz_angle_buffer, DFT_LEN, spoof_angle);
           //Find old angle
           float old_xz_angle = get_value_c_buffer(xz_angle_buffer, DFT_LEN, xz_angle_buffer_index, DFT_LEN);
+
+          //Moving Avg Angle
+          xz_angle_avg = xz_angle_avg + (xz_angle - old_xz_angle);
+
           
           //Perform sliding window DFT
           
@@ -528,8 +551,11 @@ void process_mpu_data() {
             
             float dft_pwr = 0;
 
-            dft_xz_re[j] = (dft_xz_re[j] + xz_angle - old_xz_angle) * cos(2*PI_M*j/DFT_LEN);
-            dft_xz_im[j] = (dft_xz_im[j] + xz_angle - old_xz_angle) * sin(2*PI_M*j/DFT_LEN);
+            //float xz_angle_temp = xz_angle - xz_angle_avg /DFT_LEN;
+            //float old_xz_angle_temp = old_xz_angle - xz_angle_avg /DFT_LEN;
+
+            dft_xz_re[j] = (dft_xz_re[j] + spoof_angle - old_xz_angle) * cos(2*PI_M*j/DFT_LEN);
+            dft_xz_im[j] = (dft_xz_im[j] + spoof_angle - old_xz_angle) * sin(2*PI_M*j/DFT_LEN);
 
             dft_pwr = dft_xz_re[j] * dft_xz_re[j] + dft_xz_im[j] * dft_xz_im[j];
 
@@ -541,12 +567,14 @@ void process_mpu_data() {
 
           }
           
-          if(counter >= 50){
+          if(counter >= 1){
           
               NRF_LOG_INFO("Max DFT idx: %d", max_dft_idx);
+              NRF_LOG_INFO("Spoof angle: %d", spoof_angle);
               //NRF_LOG_INFO("Was reading data from buffer, place: %d", 0 + buffer_offset * TWIM_RX_BUF_LENGTH);
-              NRF_LOG_INFO("COMP XZ Angle: " NRF_LOG_FLOAT_MARKER "\r\n", NRF_LOG_FLOAT(xz_angle));
-
+              //NRF_LOG_INFO("COMP XZ Angle: " NRF_LOG_FLOAT_MARKER "\r\n", NRF_LOG_FLOAT(xz_angle));
+              //NRF_LOG_INFO("COMP XZ Angle minus AVG: " NRF_LOG_FLOAT_MARKER "\r\n", NRF_LOG_FLOAT(xz_angle - xz_angle_avg /DFT_LEN));
+              //NRF_LOG_INFO("DFT Hertz: " NRF_LOG_FLOAT_MARKER "\r\n", NRF_LOG_FLOAT(max_dft_idx * 1/(UPDATE_LOOP_DT*DFT_LEN) ));
               counter = 0;
          
           }
