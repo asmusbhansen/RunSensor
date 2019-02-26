@@ -452,9 +452,6 @@ void process_mpu_data() {
     int16_t z;
     int buffer_offset = 0;
 
-    static int spoof_angle = 0;
-    static int spoof_up = 0;
-
     //DFT
     float max_dft = 0;
     uint16_t max_dft_idx = 0;
@@ -467,21 +464,13 @@ void process_mpu_data() {
     //In the first iteration the data should be read intp the array p_rx_buffer from index 0. Before processing the data, we instruct the DMA to load data into the buffer from index TWIM_RX_BUF_LENGTH for processing in next iteration
     //The next iteration will read the data from the offset posistion in the buffer, but first make sure that the next iteration the data will be read into the buffer from position 0.
 
-    //NRF_LOG_INFO("Rx Counter at: %d", rx_counter);
-    
-
     //Determine if the buffer is offset
     //The data buffer is split into two part of length TWIM_RX_BUF_LENGTH * TWIM_RX_BUF_WIDTH size each. 
     //If the current counter is higher half of the total buffer, the buffer is offset
     if(rx_buffer_offset + sizeof(p_rx_buffer)/2 < rx_counter){
       buffer_offset = 1;
-      //NRF_LOG_INFO("Data is offset!.");
-    }
-    else{
-      //NRF_LOG_INFO("Data is not offset!.");
-    }
 
-    //NRF_LOG_INFO("buffer_offset*sizeof(p_rx_buffer)/2: %ld", buffer_offset*sizeof(p_rx_buffer)/2);
+    }
 
     //We want to calculate the samples available. Rx_counter is where the last reading was put into, rx_buffer offset is where the first reading can be put into. 
     //If the buffer is offset, we start halfway into the buffer i.e. sizeof(p_rx_buffer)/2 bytes into the buffer.
@@ -494,18 +483,12 @@ void process_mpu_data() {
     if(measurements_available >= TWIM_RX_BUF_LENGTH/2) {
     
       //Instruct the DMA Where to put data next. If the buffer was determined to be offset we want to put data into index 0 from next iteration
-//      NRF_LOG_INFO("Start buffer addr: %d", rx_buffer_offset);
-//      NRF_LOG_INFO("Next iteration data will be put in from addr: %d",  (uint32_t)(rx_buffer_offset + (1 - buffer_offset) * buffer_offset*sizeof(p_rx_buffer)/2));
-  
       NRF_TWIM0->RXD.PTR = (uint32_t)(rx_buffer_offset + (1 - buffer_offset) * buffer_offset*sizeof(p_rx_buffer)/2);
       
-      //NRF_LOG_INFO("Reading data from buffer, place: %d", 0 + buffer_offset * TWIM_RX_BUF_LENGTH);
-  
       //Begin processing the data
       for(int i = 0;i <measurements_available; i++){
 
           //When reading data from the buffer in RAM, we offset by half the buffer if the buffer is determined to be offset.
-          //NRF_LOG_INFO("Process data");
           read_mpu_data_RAM(&sensor_values, i + buffer_offset * TWIM_RX_BUF_LENGTH);
 
           xz_angle_acc = atan2((float)sensor_values.accl_X,(float)sensor_values.accl_Z)*180/PI_M;
@@ -517,21 +500,7 @@ void process_mpu_data() {
           //Complementary filter
           xz_angle = filter_constant*(xz_angle + gyro_Y * UPDATE_LOOP_DT/1000 ) + (1-filter_constant)*xz_angle_acc;
           yz_angle = filter_constant*(yz_angle + gyro_X * UPDATE_LOOP_DT/1000 ) + (1-filter_constant)*yz_angle_acc;
-/*
-          //Calculate spoof angle
-          if(spoof_angle > 10){
-              spoof_up = 0;
-          }
-          else if (spoof_angle < -10){
-              spoof_up = 1;
-          }
-          if(spoof_up == 1){
-              spoof_angle += 1;
-          }
-          else{
-              spoof_angle -= 1;
-          }
-*/
+
           //DFT          
           //Put new angle into buffer
           xz_angle_buffer_index = set_value_c_buffer(xz_angle_buffer, DFT_LEN, xz_angle);
@@ -551,9 +520,6 @@ void process_mpu_data() {
             
             float dft_pwr = 0;
 
-            //float xz_angle_temp = xz_angle - xz_angle_avg /DFT_LEN;
-            //float old_xz_angle_temp = old_xz_angle - xz_angle_avg /DFT_LEN;
-
             dft_xz_re[j] = (dft_xz_re[j] + xz_angle - old_xz_angle) * cos(2*PI_M*j/DFT_LEN) - dft_xz_im[j]*sin(2*PI_M*j/DFT_LEN);
             dft_xz_im[j] = (dft_xz_re[j] + xz_angle - old_xz_angle) * sin(2*PI_M*j/DFT_LEN) + dft_xz_im[j]*cos(2*PI_M*j/DFT_LEN);
 
@@ -564,27 +530,18 @@ void process_mpu_data() {
                 max_dft_idx = j;
             }
 
-
           }
           
           if(counter >= 10){
           
               NRF_LOG_INFO("Max DFT idx: %d", max_dft_idx);
-              NRF_LOG_INFO("Spoof angle: %d", spoof_angle);
-              //NRF_LOG_INFO("Was reading data from buffer, place: %d", 0 + buffer_offset * TWIM_RX_BUF_LENGTH);
-              //NRF_LOG_INFO("COMP XZ Angle: " NRF_LOG_FLOAT_MARKER "\r\n", NRF_LOG_FLOAT(xz_angle));
-              //NRF_LOG_INFO("COMP XZ Angle minus AVG: " NRF_LOG_FLOAT_MARKER "\r\n", NRF_LOG_FLOAT(xz_angle - xz_angle_avg /DFT_LEN));
-              //NRF_LOG_INFO("DFT Hertz: " NRF_LOG_FLOAT_MARKER "\r\n", NRF_LOG_FLOAT(max_dft_idx * 1/(UPDATE_LOOP_DT*DFT_LEN) ));
+              NRF_LOG_INFO("COMP XZ Angle: " NRF_LOG_FLOAT_MARKER "\r\n", NRF_LOG_FLOAT(xz_angle));
               counter = 0;
          
           }
           counter++;
-
- 
-
       }
       
-
       mpu_orientation.mpu_xz_angle = yz_angle;
       mpu_orientation.mpu_yz_angle = xz_angle;
 
