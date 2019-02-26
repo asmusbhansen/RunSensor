@@ -517,7 +517,7 @@ void process_mpu_data() {
           //Complementary filter
           xz_angle = filter_constant*(xz_angle + gyro_Y * UPDATE_LOOP_DT/1000 ) + (1-filter_constant)*xz_angle_acc;
           yz_angle = filter_constant*(yz_angle + gyro_X * UPDATE_LOOP_DT/1000 ) + (1-filter_constant)*yz_angle_acc;
-
+/*
           //Calculate spoof angle
           if(spoof_angle > 10){
               spoof_up = 0;
@@ -531,10 +531,10 @@ void process_mpu_data() {
           else{
               spoof_angle -= 1;
           }
-
+*/
           //DFT          
           //Put new angle into buffer
-          xz_angle_buffer_index = set_value_c_buffer(xz_angle_buffer, DFT_LEN, spoof_angle);
+          xz_angle_buffer_index = set_value_c_buffer(xz_angle_buffer, DFT_LEN, xz_angle);
           //Find old angle
           float old_xz_angle = get_value_c_buffer(xz_angle_buffer, DFT_LEN, xz_angle_buffer_index, DFT_LEN);
 
@@ -554,8 +554,8 @@ void process_mpu_data() {
             //float xz_angle_temp = xz_angle - xz_angle_avg /DFT_LEN;
             //float old_xz_angle_temp = old_xz_angle - xz_angle_avg /DFT_LEN;
 
-            dft_xz_re[j] = (dft_xz_re[j] + spoof_angle - old_xz_angle) * cos(2*PI_M*j/DFT_LEN);
-            dft_xz_im[j] = (dft_xz_im[j] + spoof_angle - old_xz_angle) * sin(2*PI_M*j/DFT_LEN);
+            dft_xz_re[j] = (dft_xz_re[j] + xz_angle - old_xz_angle) * cos(2*PI_M*j/DFT_LEN) - dft_xz_im[j]*sin(2*PI_M*j/DFT_LEN);
+            dft_xz_im[j] = (dft_xz_re[j] + xz_angle - old_xz_angle) * sin(2*PI_M*j/DFT_LEN) + dft_xz_im[j]*cos(2*PI_M*j/DFT_LEN);
 
             dft_pwr = dft_xz_re[j] * dft_xz_re[j] + dft_xz_im[j] * dft_xz_im[j];
 
@@ -567,7 +567,7 @@ void process_mpu_data() {
 
           }
           
-          if(counter >= 1){
+          if(counter >= 10){
           
               NRF_LOG_INFO("Max DFT idx: %d", max_dft_idx);
               NRF_LOG_INFO("Spoof angle: %d", spoof_angle);
