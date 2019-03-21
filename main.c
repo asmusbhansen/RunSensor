@@ -126,8 +126,11 @@
 
 #define DEAD_BEEF                       0xDEADBEEF                              /**< Value used as error code on stack dump, can be used to identify stack location on stack unwind. */
 
-#define NOTIFICATION_INTERVAL           APP_TIMER_TICKS(250)
-#define UPDATE_LOOP_INTERVAL            APP_TIMER_TICKS(100)
+//Milliseconds between the user is notified
+#define NOTIFICATION_INTERVAL           APP_TIMER_TICKS(1000)
+
+//Milliseconds between reading IMU measurements from RAM and process them 
+#define UPDATE_LOOP_INTERVAL            APP_TIMER_TICKS(250)
 
 
 APP_TIMER_DEF(m_notification_timer_id);                                         /**< Create application timer ID */
@@ -288,10 +291,13 @@ static void notification_timeout_handler(void * p_context)
     MPU9250_orientation orientation;
 
     get_mpu_orientation(&orientation);
-
+#if COMP_FIXED
+    mpu_xz_angle = ((int32_t)orientation.mpu_xz_angle)*180 + 90;
+    mpu_yz_angle = ((int32_t)orientation.mpu_yz_angle)*180 + 90;
+#else
     mpu_xz_angle = ((int16_t)orientation.mpu_xz_angle) + 90;
     mpu_yz_angle = ((int16_t)orientation.mpu_yz_angle) + 90;
-
+#endif
      
 
     if(notifications_en.xz_value_notification_en){
@@ -977,10 +983,14 @@ int main(void)
     application_timers_start();
 
     advertising_start(erase_bonds);
+
+    
     
     //Activate TWI to initiate MPU and then deactivate again
     nrf_drv_mpu_init();
+    
     mpu9250_wake();
+    
     nrf_drv_mpu_deavtivate();
 
     // Setup PPI channel with event from TIMER compare and task GPIOTE pin toggle.

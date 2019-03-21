@@ -176,11 +176,17 @@ uint32_t mpu9250_wake(void)
     uint32_t data_len = 0;
     uint8_t data[1] = {0};
 
+    
+
     //Read 1 byte from WHO_AM_I_MPU9250 register to verify connection
     data_len = 1;
     err_code = nrf_drv_mpu_read_registers(WHO_AM_I_MPU9250, data, data_len);
+    NRF_LOG_INFO("From mpu9250_wake: WHO_AM_I:  %x.", data[0]);
     NRF_LOG_INFO("From mpu9250_wake: Read register  err_code:  %x.", err_code);
+    //while(1);
     APP_ERROR_CHECK(err_code);
+
+    
 
     //Check connection
     if(data[0] == 0x71) {
@@ -217,8 +223,11 @@ uint32_t mpu9250_wake(void)
     APP_ERROR_CHECK(err_code);
 
     //Set low sensitivity
-    data[0] = data[0] & 0b11100111;
-    data[0] = data[0] | 0b00001000;
+    //data[0] = data[0] & 0b11100111;
+    //data[0] = data[0] | 0b00001000;
+
+    //Set low sensitivity
+    data[0] = 0x10;
 
     err_code = nrf_drv_mpu_write_registers(GYRO_CONFIG, data, 1);
     APP_ERROR_CHECK(err_code);
@@ -440,16 +449,37 @@ void process_mpu_data() {
     uint32_t rx_buffer_offset = (uint32_t)&p_rx_buffer;
     uint32_t measurements_available = 0;
     mpu9250_sensor_values sensor_values = {0};
+    
     float yz_angle = mpu_orientation.mpu_xz_angle;
     float xz_angle = mpu_orientation.mpu_yz_angle;
+    
+    static int16_t yz_angle_f = 0;
+    static int16_t xz_angle_f = 0;
+
     static float yz_angle_avg = 0;
     static float xz_angle_avg = 0;
+    
+    static int16_t yz_angle_avg_f = 0;
+    static int16_t xz_angle_avg_f = 0;
+    
     float xz_angle_acc = 0;
     float yz_angle_acc = 0;
+    
+    int16_t xz_angle_acc_f = 0;
+    int16_t yz_angle_acc_f = 0;
+
     float gyro_X = 0;
     float gyro_Y = 0;
+    
+    int16_t gyro_X_f = 0;
+    int16_t gyro_Y_f = 0;
+
+    int32_t mult_temp_1 = 0;
+    int32_t mult_temp_2 = 0;
+    
     int16_t x;
     int16_t z;
+    
     int buffer_offset = 0;
 
     //DFT
@@ -457,9 +487,16 @@ void process_mpu_data() {
     uint16_t max_dft_idx = 0;
 
     static int counter = 0;
+    
+    int BIN_SCALE = 15;
 
+    
+#if COMP_FIXED
+    int filter_constant_1 = 0x799A; // 0.95
+    int filter_constant_2 = 0x666; // (1-0.95)
+#else
     float filter_constant = 0.98;
-
+#endif
 
     //In the first iteration the data should be read intp the array p_rx_buffer from index 0. Before processing the data, we instruct the DMA to load data into the buffer from index TWIM_RX_BUF_LENGTH for processing in next iteration
     //The next iteration will read the data from the offset posistion in the buffer, but first make sure that the next iteration the data will be read into the buffer from position 0.
@@ -491,16 +528,48 @@ void process_mpu_data() {
           //When reading data from the buffer in RAM, we offset by half the buffer if the buffer is determined to be offset.
           read_mpu_data_RAM(&sensor_values, i + buffer_offset * TWIM_RX_BUF_LENGTH);
 
+         
+          //Complementary filter
+#if COMP_FIXED
+
+          //ACC Angle virker i fixed point
+          xz_angle_acc_f = (int32_t)(atan2((float)sensor_values.accl_X,(float)sensor_values.accl_Z)/PI_M * 32768);
+          yz_angle_acc_f = (int32_t)(atan2((float)sensor_values.accl_Y,(float)sensor_values.accl_Z)/PI_M * 32768);
+
+          //Convert gyro rate to 
+          gyro_Y_f = ((-1)*sensor_values.gyro_Y * 32768) / (33 * 180 * 200);//(2147483648 / (33 * 180 * 200) );
+          gyro_X_f = ((-1)*sensor_values.gyro_X * 32768) / (33 * 180 * 200);//(2147483648 / (33 * 180 * 200) );
+  
+          mult_temp_1 = (int32_t)(filter_constant_1) * (int32_t)( xz_angle_f + gyro_Y_f ); 
+          mult_temp_2 = (int32_t)(filter_constant_2) * (int32_t)(xz_angle_acc_f);
+
+
+          xz_angle_f = (int16_t)(mult_temp_1 / ( 1 << BIN_SCALE ) + mult_temp_2 / ( 1 << BIN_SCALE ));
+
+          mult_temp_1 = (int32_t)(filter_constant_1*( yz_angle_f + gyro_X_f )); 
+          mult_temp_2 = (int32_t)(filter_constant_2 * yz_angle_acc_f);
+
+          yz_angle_f = (int16_t)(mult_temp_1 / ( 1 << BIN_SCALE ) + mult_temp_2 / ( 1 << BIN_SCALE ));
+       
+          mpu_orientation.mpu_xz_angle = yz_angle_f;
+          mpu_orientation.mpu_yz_angle = xz_angle_f;
+          
+#else
+
           xz_angle_acc = atan2((float)sensor_values.accl_X,(float)sensor_values.accl_Z)*180/PI_M;
           yz_angle_acc = atan2((float)sensor_values.accl_Y,(float)sensor_values.accl_Z)*180/PI_M;
 
           gyro_Y = (float)(-1*sensor_values.gyro_Y) / GYRO_SCALE;
           gyro_X = (float)(-1*sensor_values.gyro_X) / GYRO_SCALE;
 
-          //Complementary filter
           xz_angle = filter_constant*(xz_angle + gyro_Y * UPDATE_LOOP_DT/1000 ) + (1-filter_constant)*xz_angle_acc;
           yz_angle = filter_constant*(yz_angle + gyro_X * UPDATE_LOOP_DT/1000 ) + (1-filter_constant)*yz_angle_acc;
 
+          mpu_orientation.mpu_xz_angle = (int)yz_angle;
+          mpu_orientation.mpu_yz_angle = (int)xz_angle;
+
+#endif
+          /*
           //DFT          
           //Put new angle into buffer
           xz_angle_buffer_index = set_value_c_buffer(xz_angle_buffer, DFT_LEN, xz_angle);
@@ -531,19 +600,29 @@ void process_mpu_data() {
             }
 
           }
+          */
+
           
-          if(counter >= 10){
+          if(counter >= 100){
           
-              NRF_LOG_INFO("Max DFT idx: %d", max_dft_idx);
-              NRF_LOG_INFO("COMP XZ Angle: " NRF_LOG_FLOAT_MARKER "\r\n", NRF_LOG_FLOAT(xz_angle));
+              //NRF_LOG_INFO("Max DFT idx: %d", max_dft_idx);
+              //NRF_LOG_INFO("COMP XZ Angle: " NRF_LOG_FLOAT_MARKER "\r\n", NRF_LOG_FLOAT(xz_angle_acc));
+              NRF_LOG_INFO("COMP XZ Angle: %d", xz_angle_f / (int32_t)(32768 / 180));
+              NRF_LOG_INFO("ACC XZ Angle: %d", xz_angle_acc_f / (int32_t)(32768 / 180));
+              NRF_LOG_INFO("Mult temp 1 shifted: %d", mult_temp_1>>BIN_SCALE);
+              NRF_LOG_INFO("Mult temp 2 shifted: %d", mult_temp_2>>BIN_SCALE);
+              
+              
+              //NRF_LOG_INFO("COMP XZ Angle: " NRF_LOG_FLOAT_MARKER "\r\n", NRF_LOG_FLOAT(xz_angle_acc));
+              //NRF_LOG_INFO("Gyro X Fixed: %d", (int32_t)(gyro_Y_f * 180 * 200) / 32768);
+              
               counter = 0;
          
           }
           counter++;
       }
       
-      mpu_orientation.mpu_xz_angle = yz_angle;
-      mpu_orientation.mpu_yz_angle = xz_angle;
+      
 
     }
 

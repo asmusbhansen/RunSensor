@@ -56,9 +56,11 @@
 
 #define MPU_TWI_BUFFER_SIZE       14
 
-#define GYRO_SCALE       131
+#define GYRO_SCALE       32.8
 
-#define UPDATE_LOOP_DT   10
+#define UPDATE_LOOP_DT   5
+
+#define COMP_FIXED       1
 
 /* MPU TWI Output pins */
 #define MPU_TWI_SCL_PIN 17//ARDUINO_SCL_PIN / 17
@@ -85,7 +87,7 @@
 /* DFT length */
 #define DFT_LEN 1024
 #define COMPUTE_DFT_START 1
-#define COMPUTE_DFT_BINS 60
+#define COMPUTE_DFT_BINS 20
 
 
 /* Struct for storing MPU9250 sensor values */
@@ -104,8 +106,11 @@ typedef struct
 /* Struct for storing MPU9250 orientation */
 typedef struct 
 {
-    float mpu_xz_angle;                                  
-    float mpu_yz_angle;
+    int16_t mpu_xz_angle;                                  
+    int16_t mpu_yz_angle;
+
+    //int mpu_xz_angle_f;                                  
+    //int mpu_yz_angle_f;
 
 }MPU9250_orientation;
 
