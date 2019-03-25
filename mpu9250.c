@@ -533,12 +533,13 @@ void process_mpu_data() {
 #if COMP_FIXED
 
           //ACC Angle virker i fixed point
-          xz_angle_acc_f = (int32_t)(atan2((float)sensor_values.accl_X,(float)sensor_values.accl_Z)/PI_M * 32768);
-          yz_angle_acc_f = (int32_t)(atan2((float)sensor_values.accl_Y,(float)sensor_values.accl_Z)/PI_M * 32768);
+          // Approximation: 1/PI_M * 32768 = 10431 - The approximation deviates from the true value by: 45 - (atan(1)  * 10431) * pi/(2^15) * 180/pi = 0.0026 degrees
+          xz_angle_acc_f = (int32_t)(atan2((float)sensor_values.accl_X,(float)sensor_values.accl_Z) * 10431); 
+          yz_angle_acc_f = (int32_t)(atan2((float)sensor_values.accl_Y,(float)sensor_values.accl_Z) * 10431);
 
           //Convert gyro rate to 
-          gyro_Y_f = ((-1)*sensor_values.gyro_Y * 32768) / (33 * 180 * 200);//(2147483648 / (33 * 180 * 200) );
-          gyro_X_f = ((-1)*sensor_values.gyro_X * 32768) / (33 * 180 * 200);//(2147483648 / (33 * 180 * 200) );
+          gyro_Y_f = ((-1)*sensor_values.gyro_Y * 32768) / (33 * 180 * 200);
+          gyro_X_f = ((-1)*sensor_values.gyro_X * 32768) / (33 * 180 * 200);
   
           mult_temp_1 = (int32_t)(filter_constant_1) * (int32_t)( xz_angle_f + gyro_Y_f ); 
           mult_temp_2 = (int32_t)(filter_constant_2) * (int32_t)(xz_angle_acc_f);

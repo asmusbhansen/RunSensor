@@ -76,6 +76,7 @@
 #define MPU9250_NO_CONNECTION     0x01 + MPU9250_ERROR_CODE_OFFSET
 
 #define PI_M             3.1415
+#define PI_F             1
 
 /* Mode for MPU9250. */
 #define NORMAL_MODE 0U

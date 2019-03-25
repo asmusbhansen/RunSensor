@@ -1002,7 +1002,7 @@ int main(void)
     for (;;)
     {
         idle_state_handle();
-
+        
         //print_dma_buffer();
         //process_mpu_data();
         //read_mpu_sensors(&sensor_values);
