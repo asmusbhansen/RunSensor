@@ -951,7 +951,6 @@ static void advertising_start(bool erase_bonds)
 /**@brief Function for application main entry.
  */
 int main(void)
-
 {
 
     bool erase_bonds;

@@ -8,6 +8,8 @@
 #include "mpu9250.h"
 
 /* Indicates if operation on TWI has ended. */
+extern int compFilt(short,short,short);
+
 static volatile bool m_xfer_done = false;
 
 /* TX Buffer*/
@@ -15,6 +17,21 @@ uint8_t twi_tx_buffer[MPU_TWI_BUFFER_SIZE];
 
 /* TWI instance. */
 static const nrf_drv_twi_t m_twi_instance = NRF_DRV_TWI_INSTANCE(TWI_INSTANCE_ID);
+/* Dummy functions to avoid linker complaints */
+void __aeabi_unwind_cpp_pr0(void)
+{
+};
+EXPORT_SYMBOL(__aeabi_unwind_cpp_pr0);
+
+void __aeabi_unwind_cpp_pr1(void)
+{
+};
+EXPORT_SYMBOL(__aeabi_unwind_cpp_pr1);
+
+void __aeabi_unwind_cpp_pr2(void)
+{
+};
+EXPORT_SYMBOL(__aeabi_unwind_cpp_pr2);
 
 /* Number of readings */
 array_list_t p_rx_buffer[2*TWIM_RX_BUF_LENGTH];
@@ -493,7 +510,7 @@ void process_mpu_data() {
     
 #if COMP_FIXED
     int filter_constant_1 = 0x799A; // 0.95
-    int filter_constant_2 = 0x666; // (1-0.95)
+    int filter_constant_2 = 0x0666; // (1-0.95)
 #else
     float filter_constant = 0.98;
 #endif
@@ -541,19 +558,8 @@ void process_mpu_data() {
           gyro_Y_f = ((-1)*sensor_values.gyro_Y * 32768) / (33 * 180 * 200);
           gyro_X_f = ((-1)*sensor_values.gyro_X * 32768) / (33 * 180 * 200);
   
-          mult_temp_1 = (int32_t)(filter_constant_1) * (int32_t)( xz_angle_f + gyro_Y_f ); 
-          mult_temp_2 = (int32_t)(filter_constant_2) * (int32_t)(xz_angle_acc_f);
-
-
-          xz_angle_f = (int16_t)(mult_temp_1 / ( 1 << BIN_SCALE ) + mult_temp_2 / ( 1 << BIN_SCALE ));
-
-          mult_temp_1 = (int32_t)(filter_constant_1*( yz_angle_f + gyro_X_f )); 
-          mult_temp_2 = (int32_t)(filter_constant_2 * yz_angle_acc_f);
-
-          yz_angle_f = (int16_t)(mult_temp_1 / ( 1 << BIN_SCALE ) + mult_temp_2 / ( 1 << BIN_SCALE ));
-       
-          mpu_orientation.mpu_xz_angle = yz_angle_f;
-          mpu_orientation.mpu_yz_angle = xz_angle_f;
+          //xz_angle_f = (int16_t)(mult_temp_1 / ( 1 << BIN_SCALE ) + mult_temp_2 / ( 1 << BIN_SCALE ));
+          xz_angle_f = compFilt(gyro_Y_f,xz_angle_acc_f,xz_angle_f);
           
 #else
 
@@ -609,9 +615,9 @@ void process_mpu_data() {
               //NRF_LOG_INFO("Max DFT idx: %d", max_dft_idx);
               //NRF_LOG_INFO("COMP XZ Angle: " NRF_LOG_FLOAT_MARKER "\r\n", NRF_LOG_FLOAT(xz_angle_acc));
               NRF_LOG_INFO("COMP XZ Angle: %d", xz_angle_f / (int32_t)(32768 / 180));
-              NRF_LOG_INFO("ACC XZ Angle: %d", xz_angle_acc_f / (int32_t)(32768 / 180));
-              NRF_LOG_INFO("Mult temp 1 shifted: %d", mult_temp_1>>BIN_SCALE);
-              NRF_LOG_INFO("Mult temp 2 shifted: %d", mult_temp_2>>BIN_SCALE);
+             //NRF_LOG_INFO("ACC XZ Angle: %d", xz_angle_acc_f / (int32_t)(32768 / 180));
+              //NRF_LOG_INFO("Mult temp 1 shifted: %d", mult_temp_1>>BIN_SCALE);
+              //NRF_LOG_INFO("Mult temp 2 shifted: %d", mult_temp_2>>BIN_SCALE);
               
               
               //NRF_LOG_INFO("COMP XZ Angle: " NRF_LOG_FLOAT_MARKER "\r\n", NRF_LOG_FLOAT(xz_angle_acc));
