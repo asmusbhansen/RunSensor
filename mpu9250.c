@@ -488,6 +488,7 @@ void process_mpu_data() {
       //process_loop_fixed(sensor_values, &mpu_orientation);
       process_loop_float(sensor_values, &mpu_orientation);
       nrf_gpio_pin_clear(LED_3);
+      sd_app_evt_wait();
     }
 
     
