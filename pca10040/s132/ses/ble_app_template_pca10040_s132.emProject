@@ -104,6 +104,10 @@
       <file file_name="../../../mpu9250.c" />
       <file file_name="../../../mpu9250.h" />
       <file file_name="Assembly.s" />
+      <file file_name="../../../functions.c" />
+      <file file_name="../../../functions.h" />
+      <file file_name="../../../process_loop_float.c" />
+      <file file_name="../../../process_loop.c" />
     </folder>
     <folder Name="nRF_Segger_RTT">
       <file file_name="../../../../../../external/segger_rtt/SEGGER_RTT.c" />
