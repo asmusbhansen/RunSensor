@@ -1,5 +1,6 @@
 #include <math.h>
 
+short atan_val[10] = {8192, 4836, 2555, 1297, 651,326,163, 81, 41,20};
 
 //_____________________________________cATAN2___________________________________________
 int cATAN2(short real, short imag, short N) {
@@ -27,7 +28,7 @@ int cATAN2(short real, short imag, short N) {
 
   short current_theta = 0;
   short temp = 0;
-  short atan_val[10] = {8192, 4836, 2555, 1297, 651,326,163, 81, 41,20};
+
 
   for (int i = 0; i < N; i++) {
     if (imag < 0) { //negativ angle
