@@ -107,7 +107,8 @@
       <file file_name="../../../functions.c" />
       <file file_name="../../../functions.h" />
       <file file_name="../../../process_loop_float.c" />
-      <file file_name="../../../process_loop.c" />
+      <file file_name="../../../process_loop_fixed_asm.c" />
+      <file file_name="../../../process_loop_fixed.c" />
     </folder>
     <folder Name="nRF_Segger_RTT">
       <file file_name="../../../../../../external/segger_rtt/SEGGER_RTT.c" />

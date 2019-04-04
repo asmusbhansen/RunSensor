@@ -5,7 +5,6 @@
 #include "nrf_drv_twi.h"
 #include "nrf_gpio.h"
 #include "nrf_log.h"
-#include <math.h>
 #include "functions.h"
 
 /* Indicates if operation on TWI has ended. */
@@ -477,15 +476,21 @@ void process_mpu_data() {
     //Instruct the DMA Where to put data next. If the buffer was determined to be offset we want to put data into index 0 from next iteration
     NRF_TWIM0->RXD.PTR = (uint32_t)(rx_buffer_offset + (1 - buffer_offset) * buffer_offset * sizeof(p_rx_buffer) / 2);
 
+    
+
     //Begin processing the data
     for (int i = 0; i < measurements_available; i++) {
 
       //When reading data from the buffer in RAM, we offset by half the buffer if the buffer is determined to be offset.
       read_mpu_data_RAM(&sensor_values, i + buffer_offset * TWIM_RX_BUF_LENGTH);
-
-      //process_loop(sensor_values, &mpu_orientation);
+      nrf_gpio_pin_set(LED_3);
+      //process_loop_fixed_asm(sensor_values, &mpu_orientation);
+      //process_loop_fixed(sensor_values, &mpu_orientation);
       process_loop_float(sensor_values, &mpu_orientation);
+      nrf_gpio_pin_clear(LED_3);
     }
+
+    
   }
 }
 
