@@ -1,3 +1,5 @@
+#ifndef mpu9250_h
+#define mpu9250_h
 #include "app_util_platform.h"
 #include "app_error.h"
 #include "nrf_gpio.h"
@@ -9,6 +11,7 @@
 #include "nrf_drv_ppi.h"
 #include "nrf_drv_timer.h"
 #include "nrf_drv_gpiote.h"
+
 
 /* For enabling TWI set the same TWI settings as in the sdk_config of the twi_sensor example and add both nrfx_twi.c and nrf_drv_twi.c to the project */ 
 
@@ -91,6 +94,7 @@
 #define COMPUTE_DFT_BINS 20
 
 
+
 /* Struct for storing MPU9250 sensor values */
 typedef struct 
 {
@@ -120,6 +124,10 @@ typedef struct ArrayList
 {
     uint8_t buffer[TWIM_RX_BUF_WIDTH];
 }array_list_t;
+
+
+
+
 
 
 /**@brief Function for waking up the MPU9250.
@@ -269,3 +277,9 @@ float get_value_c_buffer(float * buf, uint16_t buffer_len, uint16_t newest_idx, 
 
 /** @Brief Function for setting a value in a circular buffer*/
 uint16_t set_value_c_buffer(float * buf, uint16_t buffer_len, float val);
+
+
+
+
+
+#endif

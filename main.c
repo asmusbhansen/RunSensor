@@ -96,6 +96,7 @@
 
 #include "ble_run.h"
 #include "mpu9250.h"
+#include "functions.h"
 
 
 #define DEVICE_NAME                     "RunSensor"                             /**< Name of device. Will be included in the advertising data. */
@@ -127,7 +128,7 @@
 #define DEAD_BEEF                       0xDEADBEEF                              /**< Value used as error code on stack dump, can be used to identify stack location on stack unwind. */
 
 //Milliseconds between the user is notified
-#define NOTIFICATION_INTERVAL           APP_TIMER_TICKS(1000)
+#define NOTIFICATION_INTERVAL           APP_TIMER_TICKS(500)
 
 //Milliseconds between reading IMU measurements from RAM and process them 
 #define UPDATE_LOOP_INTERVAL            APP_TIMER_TICKS(250)
@@ -292,8 +293,8 @@ static void notification_timeout_handler(void * p_context)
 
     get_mpu_orientation(&orientation);
 #if COMP_FIXED
-    mpu_xz_angle = ((int32_t)orientation.mpu_xz_angle)*180 + 90;
-    mpu_yz_angle = ((int32_t)orientation.mpu_yz_angle)*180 + 90;
+    mpu_xz_angle = ((int32_t)orientation.mpu_xz_angle);
+    mpu_yz_angle = ((int32_t)orientation.mpu_yz_angle);
 #else
     mpu_xz_angle = ((int16_t)orientation.mpu_xz_angle) + 90;
     mpu_yz_angle = ((int16_t)orientation.mpu_yz_angle) + 90;
