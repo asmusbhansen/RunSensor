@@ -16,22 +16,22 @@ int BIN_SCALE = 15;
           int32_t mult_temp_2 = 0;
   
 
-          int16_t xz_angle_acc_f = cATAN2(sensor_values.accl_Z, sensor_values.accl_X, 5);
-          int16_t yz_angle_acc_f = cATAN2(sensor_values.accl_Z, sensor_values.accl_Y, 5);
+          int16_t xz_angle_acc_f = cATAN2(sensor_values.accl_Z, sensor_values.accl_X, CORDIC_ITERATIONS);
+          int16_t yz_angle_acc_f = cATAN2(sensor_values.accl_Z, sensor_values.accl_Y, CORDIC_ITERATIONS);
       
                 //Convert gyro rate to
           int16_t gyro_Y_f = ((-1) * sensor_values.gyro_Y * 32768) / (33 * 180 * 200);
           int16_t gyro_X_f = ((-1) * sensor_values.gyro_X * 32768) / (33 * 180 * 200);
            
           mult_temp_1 = filter_constant_1 * (xz_angle_f + gyro_Y_f ) ; 
-          mult_temp_2 = (filter_constant_2) * (xz_angle_acc_f);
+          mult_temp_2 = filter_constant_2 * xz_angle_acc_f;
 
 
-          xz_angle_f = mult_temp_1 / ( 1 << BIN_SCALE ) + mult_temp_2 / ( 1 << BIN_SCALE );
+          xz_angle_f = (int16_t)(mult_temp_1 / ( 1 << BIN_SCALE ) + mult_temp_2 / ( 1 << BIN_SCALE ));
   
 
-          mult_temp_1 = (int16_t)(filter_constant_1 * ( yz_angle_f + gyro_X_f )) << 15; 
-          mult_temp_2 = (int16_t)(filter_constant_2 * yz_angle_acc_f);
+          mult_temp_1 = filter_constant_1 * ( yz_angle_f + gyro_X_f ); 
+          mult_temp_2 = filter_constant_2 * yz_angle_acc_f;
 
           yz_angle_f = (int16_t)(mult_temp_1 / ( 1 << BIN_SCALE ) + mult_temp_2 / ( 1 << BIN_SCALE ));
 

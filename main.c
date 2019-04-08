@@ -308,6 +308,8 @@ static void notification_timeout_handler(void * p_context)
       err_code = ble_run_yz_value_update(&m_run, mpu_yz_angle);
       APP_ERROR_CHECK(err_code);
     }
+
+    //sd_app_evt_wait();
     
 }
 
