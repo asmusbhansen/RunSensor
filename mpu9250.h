@@ -93,6 +93,8 @@
 #define COMPUTE_DFT_START 1
 #define COMPUTE_DFT_BINS 20
 
+#define CORDIC_ITERATIONS 4
+
 
 
 /* Struct for storing MPU9250 sensor values */
