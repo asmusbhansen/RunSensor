@@ -1,6 +1,7 @@
 #include "mpu9250.h"
 extern int compFilt(short, short, short);
       
+extern short pATAN2(short, short);
 
       
  void process_loop_fixed_asm(mpu9250_sensor_values sensor_values, MPU9250_orientation * mpu_orientation){
@@ -13,8 +14,8 @@ extern int compFilt(short, short, short);
       //ACC Angle virker i fixed point
       // Approximation: 1/PI_M * 32768 = 10431 - The approximation deviates from the true value by: 45 - (atan(1)  * 10431) * pi/(2^15) * 180/pi = 0.0026 degrees
 
-      int16_t xz_angle_acc_f = cATAN2(sensor_values.accl_Z, sensor_values.accl_X, CORDIC_ITERATIONS);
-      int16_t yz_angle_acc_f = cATAN2(sensor_values.accl_Z, sensor_values.accl_Y, CORDIC_ITERATIONS);
+      int16_t xz_angle_acc_f = pATAN2(sensor_values.accl_X, sensor_values.accl_Z);
+      int16_t yz_angle_acc_f = pATAN2(sensor_values.accl_Y, sensor_values.accl_Z);
       //short xz_angle_acc_f_1 = (int32_t)(atan2((float)sensor_values.accl_X,(float)sensor_values.accl_Z) * 10431);
 
       //Convert gyro rate to
