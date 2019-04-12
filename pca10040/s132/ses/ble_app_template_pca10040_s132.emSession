@@ -59,8 +59,8 @@
  <Files>
   <SessionOpenFile windowGroup="DockEditLeft" x="0" y="7" useTextEdit="1" useBinaryEdit="0" left="0" path="../../../functions.c" selected="0" top="1" codecName="Default"/>
   <SessionOpenFile windowGroup="DockEditLeft" x="0" y="14" useTextEdit="1" useBinaryEdit="0" left="0" path="../../../functions.h" selected="0" top="0" codecName="Default"/>
-  <SessionOpenFile windowGroup="DockEditLeft" x="30" y="488" useTextEdit="1" useBinaryEdit="0" left="0" path="../../../mpu9250.c" selected="0" top="471" codecName="Default"/>
-  <SessionOpenFile windowGroup="DockEditLeft" x="0" y="952" useTextEdit="1" useBinaryEdit="0" left="0" path="../../../main.c" selected="1" top="936" codecName="Default"/>
+  <SessionOpenFile windowGroup="DockEditLeft" x="6" y="488" useTextEdit="1" useBinaryEdit="0" left="0" path="../../../mpu9250.c" selected="1" top="465" codecName="Default"/>
+  <SessionOpenFile windowGroup="DockEditLeft" x="0" y="952" useTextEdit="1" useBinaryEdit="0" left="0" path="../../../main.c" selected="0" top="936" codecName="Default"/>
   <SessionOpenFile windowGroup="DockEditLeft" x="0" y="95" useTextEdit="1" useBinaryEdit="0" left="0" path="../../../mpu9250.h" selected="0" top="80" codecName="Default"/>
   <SessionOpenFile windowGroup="DockEditLeft" x="0" y="9" useTextEdit="1" useBinaryEdit="0" left="0" path="../../../process_loop_float.c" selected="0" top="0" codecName="Default"/>
   <SessionOpenFile windowGroup="DockEditLeft" x="0" y="55" useTextEdit="1" useBinaryEdit="0" left="0" path="../../../../../../components/libraries/util/sdk_common.h" selected="0" top="9" codecName="Default"/>
