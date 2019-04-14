@@ -57,15 +57,16 @@
   <Watches active="0" update="Never"/>
  </Watch4>
  <Files>
-  <SessionOpenFile windowGroup="DockEditLeft" x="0" y="7" useTextEdit="1" useBinaryEdit="0" left="0" path="../../../functions.c" selected="0" top="1" codecName="Default"/>
-  <SessionOpenFile windowGroup="DockEditLeft" x="0" y="14" useTextEdit="1" useBinaryEdit="0" left="0" path="../../../functions.h" selected="0" top="0" codecName="Default"/>
-  <SessionOpenFile windowGroup="DockEditLeft" x="6" y="488" useTextEdit="1" useBinaryEdit="0" left="0" path="../../../mpu9250.c" selected="1" top="465" codecName="Default"/>
-  <SessionOpenFile windowGroup="DockEditLeft" x="0" y="952" useTextEdit="1" useBinaryEdit="0" left="0" path="../../../main.c" selected="0" top="936" codecName="Default"/>
-  <SessionOpenFile windowGroup="DockEditLeft" x="0" y="95" useTextEdit="1" useBinaryEdit="0" left="0" path="../../../mpu9250.h" selected="0" top="80" codecName="Default"/>
-  <SessionOpenFile windowGroup="DockEditLeft" x="0" y="9" useTextEdit="1" useBinaryEdit="0" left="0" path="../../../process_loop_float.c" selected="0" top="0" codecName="Default"/>
+  <SessionOpenFile windowGroup="DockEditLeft" x="6" y="83" useTextEdit="1" useBinaryEdit="0" left="0" path="../../../functions.c" selected="0" top="66" codecName="Default"/>
+  <SessionOpenFile windowGroup="DockEditLeft" x="0" y="15" useTextEdit="1" useBinaryEdit="0" left="0" path="../../../functions.h" selected="0" top="0" codecName="Default"/>
+  <SessionOpenFile windowGroup="DockEditLeft" x="6" y="490" useTextEdit="1" useBinaryEdit="0" left="0" path="../../../mpu9250.c" selected="0" top="458" codecName="Default"/>
+  <SessionOpenFile windowGroup="DockEditLeft" x="0" y="988" useTextEdit="1" useBinaryEdit="0" left="0" path="../../../main.c" selected="1" top="972" codecName="Default"/>
+  <SessionOpenFile windowGroup="DockEditLeft" x="0" y="95" useTextEdit="1" useBinaryEdit="0" left="0" path="../../../mpu9250.h" selected="0" top="89" codecName="Default"/>
+  <SessionOpenFile windowGroup="DockEditLeft" x="29" y="16" useTextEdit="1" useBinaryEdit="0" left="0" path="../../../process_loop_float.c" selected="0" top="0" codecName="Default"/>
   <SessionOpenFile windowGroup="DockEditLeft" x="0" y="55" useTextEdit="1" useBinaryEdit="0" left="0" path="../../../../../../components/libraries/util/sdk_common.h" selected="0" top="9" codecName="Default"/>
-  <SessionOpenFile windowGroup="DockEditLeft" x="0" y="26" useTextEdit="1" useBinaryEdit="0" left="0" path="../../../process_loop_fixed.c" selected="0" top="1" codecName="Default"/>
-  <SessionOpenFile windowGroup="DockEditLeft" x="0" y="8" useTextEdit="1" useBinaryEdit="0" left="0" path="../../../process_loop_fixed_asm.c" selected="0" top="0" codecName="Default"/>
+  <SessionOpenFile windowGroup="DockEditLeft" x="44" y="14" useTextEdit="1" useBinaryEdit="0" left="0" path="../../../process_loop_fixed.c" selected="0" top="0" codecName="Default"/>
+  <SessionOpenFile windowGroup="DockEditLeft" x="0" y="10" useTextEdit="1" useBinaryEdit="0" left="0" path="Assembly.s" selected="0" top="0" codecName="Default"/>
+  <SessionOpenFile windowGroup="DockEditLeft" x="0" y="24" useTextEdit="1" useBinaryEdit="0" left="0" path="../../../process_loop_fixed_asm.c" selected="0" top="0" codecName="Default"/>
  </Files>
  <ARMCrossStudioWindow activeProject="ble_app_template_pca10040_s132" fileDialogDefaultFilter="*.c" autoConnectTarget="J-Link" buildConfiguration="Release" debugSearchFileMap="C:/nrf52/nRF5_SDK_15.0.0_a53641a/examples/ble_peripheral/ble_app_run/pca10040/s132/ses/Assembly.s&#xa;&#xa;C:/nrf52/nRF5_SDK_15.0.0_a53641a/modules/nrfx/mdk/ses_nrf52_Vectors.s&#xa;&#xa;C:/nrf52/nRF5_SDK_15.0.0_a53641a/modules/nrfx/mdk/ses_nRF_Startup.s&#xa;&#xa;C:/Program Files/SEGGER/SEGGER Embedded Studio for ARM 4.12/source/thumb_crt0.s&#xa;" fileDialogInitialDirectory="/Users/hulegaard/Documents/SEGGER Embedded Studio for ARM Projects/nRF5_SDK_15.0.0_a53641a/examples/ble_peripheral/RunSensor" debugSearchPath="" autoConnectCapabilities="3711"/>
 </session>

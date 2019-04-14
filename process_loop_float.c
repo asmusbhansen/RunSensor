@@ -6,15 +6,15 @@
  void process_loop_float(mpu9250_sensor_values sensor_values, MPU9250_orientation * mpu_orientation){
       //Complementary filter
 
-      float filter_constant = 0.98;
+      float filter_constant = 0.9882;
       static float xz_angle = 0;
       static float yz_angle = 0;
 
       float xz_angle_acc = atan2((float)sensor_values.accl_X,(float)sensor_values.accl_Z)*180/PI_M;
       float yz_angle_acc = atan2((float)sensor_values.accl_Y,(float)sensor_values.accl_Z)*180/PI_M;
 
-      float gyro_Y = (float)(-1*sensor_values.gyro_Y) / GYRO_SCALE;
-      float gyro_X = (float)(-1*sensor_values.gyro_X) / GYRO_SCALE;
+      float gyro_Y = (float)(sensor_values.gyro_Y) / GYRO_SCALE;
+      float gyro_X = (float)(sensor_values.gyro_X) / GYRO_SCALE;
 
       xz_angle = filter_constant*(xz_angle + gyro_Y * UPDATE_LOOP_DT/1000 ) + (1-filter_constant)*xz_angle_acc;
       yz_angle = filter_constant*(yz_angle + gyro_X * UPDATE_LOOP_DT/1000 ) + (1-filter_constant)*yz_angle_acc;
@@ -31,6 +31,7 @@
 
         //NRF_LOG_INFO("Max DFT idx: %d", max_dft_idx);
         NRF_LOG_INFO("COMP XZ Angle: " NRF_LOG_FLOAT_MARKER "\r\n", NRF_LOG_FLOAT(xz_angle));
+        NRF_LOG_INFO("Gyro X: " NRF_LOG_FLOAT_MARKER "\r\n", NRF_LOG_FLOAT(gyro_X));
         //NRF_LOG_INFO("COMP XZ Angle: %d", xz_angle_f / (int32_t)(32768 / 180));
         //NRF_LOG_INFO("Angle is XZ %d", (int)xz_angle);
         //NRF_LOG_INFO("alfa %d", alfa1);

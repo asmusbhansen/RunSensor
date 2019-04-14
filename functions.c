@@ -1,4 +1,7 @@
 #include <math.h>
+#include "mpu9250.h"
+
+#define SHIFT 15
 
 short atan_val[10] = {8192, 4836, 2555, 1297, 651,326,163, 81, 41,20};
 short sine[60] = {0x0,0xC9,0x192,0x25B,0x324,0x3ED,0x4B6,0x57F,0x648,0x711,0x7D9,0x8A2,0x96B,0xA33,0xAFB,0xBC4,0xC8C,0xD54,0xE1C,0xEE4,0xFAB,0x1073,0x113A,0x1201,0x12C8,0x138F,0x1455,0x151C,0x15E2,0x16A8,0x176E,0x1833,0x18F9,0x19BE,0x1A83,0x1B47,0x1C0C,0x1CD0,0x1D93,0x1E57,0x1F1A,0x1FDD,0x209F,0x2162,0x2224,0x22E5,0x23A7,0x2467,0x2528,0x25E8,0x26A8,0x2768,0x2827,0x28E5,0x29A4,0x2A62,0x2B1F,0x2BDC,0x2C99,0x2D55};
@@ -60,88 +63,73 @@ int cATAN2(short real, short imag, short N) {
 
 //________________________________________________________________________________
 
-int step_detect(int freq_bin, int bin_start, int bin_stop, mpu9250_sensor_values sensor_values, int detect_threshold)
+int step_detect(int freq_bin, int bin_start, int bin_stop, int acc_value, int detect_threshold)
 {
 
-  static int max_acc_x = 0;
-  static int max_acc_y = 0;
-  static int max_acc_z = 0;
-  
-  static int dominant_acc_axis = 0;
+  static int max_acc = 0;
+  static int count = 0;
 
+  static int32_t samples_to_nex_step = 0;
+
+  float samples_in_period = 1/ ((float)UPDATE_LOOP_DT / 1000 ) / ((float)freq_bin * 0.2 * 2);
+
+  count++;
+
+  if(count%100 == 0)
+  {
+    //NRF_LOG_INFO("Step detect: Freq bin = %d", freq_bin);
+      
+    //NRF_LOG_INFO("Step detect: Maximum acc amplitude = %d", max_acc);
+
+    //NRF_LOG_INFO("Step detect: Sample pr period = %d", (int)samples_in_period);
+
+    count = 0;
+
+  }
+  
+  samples_to_nex_step--;
+   
+  //Decrement maximum amplitude
+  if(max_acc > 0)
+  {
+    max_acc--;
+  }
+
+  //If the current maximum acceleration amplitude is lower than the measurement.
+  if(max_acc < abs(acc_value))
+  {
+    max_acc = abs(acc_value);
+  }
+  
   //If were not in the correct frequency area, no step is detected.
   if(freq_bin < bin_start || freq_bin > bin_stop)
   {
     return 0;
   }
-   
-  //Decrement maximum amplitude
-  if(max_acc_x > 0)
-  {
-    max_acc_x--;
-  }
 
-  if(max_acc_y > 0)
+  //dominant_acc_axis = 1;
+  if(abs(acc_value) > max_acc >> 2)
   {
-    max_acc_y--;
-  }
-
-
-  if(max_acc_z > 0)
-  {
-    max_acc_z--;
-  }
-
-  //If the current maximum acceleration amplitude is lower than the measurement.
-  if(max_acc_x < abs(sensor_values.accl_X))
-  {
-    max_acc_x = abs(sensor_values.accl_X);
-  }
-  
-  if(max_acc_y < abs(sensor_values.accl_Y))
-  {
-    max_acc_Y = abs(sensor_values.accl_Y);
-  }
-
-  if(max_acc_Z < abs(sensor_values.accl_Z))
-  {
-    max_acc_Z = abs(sensor_values.accl_Z);
-  }
-
-  //See which axis has the largest acceleration maximum
-  if(max_acc_x > max_acc_y && max_acc_x > max_acc_z)
-  {
-    //dominant_acc_axis = 1;
-    if(sensor_values.accl_X > (float)max_acc_x * detect_threshold)
+    if(samples_to_nex_step < 0)
     {
+
+      NRF_LOG_INFO("Step detect: STEP!!!");
+      samples_to_nex_step = (int)samples_in_period;
+
       return 1;
     }
-  }
-  else if(max_acc_y > max_acc_x && max_acc_y > max_acc_z)
-  {
-    //dominant_acc_axis = 2;
-    if(sensor_values.accl_Y > (float)max_acc_y * detect_threshold)
+    else
     {
-      return 1;
+      return 0;
     }
   }
   else
   {
-    //dominant_acc_axis = 3;
-    if(sensor_values.accl_Z > (float)max_acc_Z * detect_threshold)
-    {
-      return 1;
-    }
+    return 0;
   }
 
-
-
-  
-  
-
-
-
 }
+
 short dft_fixed(short x_new){
     x_new = x_new >> 10;
     static short short_dft_r[50];
@@ -190,11 +178,12 @@ short dft_fixed(short x_new){
         
     }
     new_idx++;
-
+/*
     if (abs > 20){
       return dom_freq_indx;
     } else {
       return 0;
-    }
+    }*/
+    return dom_freq_indx;
 
 }

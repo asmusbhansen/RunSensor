@@ -275,6 +275,38 @@ static void pm_evt_handler(pm_evt_t const * p_evt)
     }
 }
 
+//Global function for notifying over BLE
+void notify_ble()
+{
+    ret_code_t err_code;   
+    int16_t mpu_xz_angle;
+    int16_t mpu_yz_angle;
+  
+    MPU9250_orientation orientation;
+
+    get_mpu_orientation(&orientation);
+
+    mpu_xz_angle = ((int32_t)orientation.mpu_xz_angle / (int32_t)(32768 / 180));
+    mpu_yz_angle = ((int32_t)orientation.mpu_yz_angle / (int32_t)(32768 / 180));
+     
+    if(notifications_en.xz_value_notification_en){
+      //m_xz_value++;
+      //err_code = ble_run_xz_value_update(&m_run, mpu_xz_angle);
+      //APP_ERROR_CHECK(err_code);
+    }
+    
+    if(notifications_en.yz_value_notification_en){
+      //m_yz_value++;
+      err_code = ble_run_yz_value_update(&m_run, mpu_yz_angle);
+      APP_ERROR_CHECK(err_code);
+    }
+
+    NRF_LOG_INFO("BLE Notify!");
+
+
+
+}
+
 /**@brief Function for handling the xz value timer timeout.
  *
  * @details This function will be called each time the xz value timer expires.
@@ -285,7 +317,9 @@ static void pm_evt_handler(pm_evt_t const * p_evt)
 static void notification_timeout_handler(void * p_context)
 {
     UNUSED_PARAMETER(p_context);
-    ret_code_t err_code;   
+    ret_code_t err_code; 
+      
+      /*
     int16_t mpu_xz_angle;
     int16_t mpu_yz_angle;
     
@@ -308,7 +342,7 @@ static void notification_timeout_handler(void * p_context)
       err_code = ble_run_yz_value_update(&m_run, mpu_yz_angle);
       APP_ERROR_CHECK(err_code);
     }
-
+    */
     //sd_app_evt_wait();
     
 }
@@ -326,6 +360,8 @@ static void update_loop_timeout_handler(void * p_context)
     nrf_gpio_pin_toggle(LED_4);
     process_mpu_data();
     
+    sd_app_evt_wait();
+
 }
 
 

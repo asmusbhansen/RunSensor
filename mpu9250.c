@@ -6,6 +6,7 @@
 #include "nrf_gpio.h"
 #include "nrf_log.h"
 #include "functions.h"
+#include "ble_run.h"
 
 /* Indicates if operation on TWI has ended. */
 
@@ -226,7 +227,7 @@ uint32_t mpu9250_wake(void) {
   //data[0] = data[0] | 0b00001000;
 
   //Set low sensitivity
-  data[0] = 0x10;
+  data[0] = 0x8;
 
   err_code = nrf_drv_mpu_write_registers(GYRO_CONFIG, data, 1);
   APP_ERROR_CHECK(err_code);
@@ -447,6 +448,8 @@ void process_mpu_data() {
   int16_t gyro_X_f = 0;
   int16_t gyro_Y_f = 0;
 
+  int16_t freq_bin = 0;
+
   int buffer_offset = 0;
 
 
@@ -484,13 +487,19 @@ void process_mpu_data() {
       //When reading data from the buffer in RAM, we offset by half the buffer if the buffer is determined to be offset.
       read_mpu_data_RAM(&sensor_values, i + buffer_offset * TWIM_RX_BUF_LENGTH);
 
-      process_loop_fixed_asm(sensor_values, &mpu_orientation);
+      
+      process_loop_fixed(sensor_values, &mpu_orientation);
+      //process_loop_fixed_asm(sensor_values, &mpu_orientation);
       //process_loop_float(sensor_values, &mpu_orientation);
       //nrf_gpio_pin_clear(LED_3);
 
-      int freq_bin = 0;
-      if(step_detect(freq_bin, 10, 60, sensor_values, 0.5));
-      
+      freq_bin = dft_fixed(mpu_orientation.mpu_yz_angle);
+
+      if(step_detect(freq_bin, 5, 60, sensor_values.accl_Z, 0.5))
+      {
+
+        notify_ble();
+      }
     }
 
     

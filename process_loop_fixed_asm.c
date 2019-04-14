@@ -8,6 +8,8 @@ extern short pATAN2(short, short);
 
       static int16_t xz_angle_f = 0;
       static int16_t yz_angle_f = 0;
+
+      int gyro_scale = (int)GYRO_SCALE;
       //Complementary filter
 
 
@@ -19,23 +21,27 @@ extern short pATAN2(short, short);
       //short xz_angle_acc_f_1 = (int32_t)(atan2((float)sensor_values.accl_X,(float)sensor_values.accl_Z) * 10431);
 
       //Convert gyro rate to
-      int16_t gyro_Y_f = ((-1) * sensor_values.gyro_Y * 32768) / (33 * 180 * 200);
-      int16_t gyro_X_f = ((-1) * sensor_values.gyro_X * 32768) / (33 * 180 * 200);
+      int16_t gyro_Y_f = (sensor_values.gyro_Y * 32768) / (gyro_scale * 180 * 200);
+      int16_t gyro_X_f = (sensor_values.gyro_X * 32768) / (gyro_scale * 180 * 200);
 
       //xz_angle_f = (int16_t)(mult_temp_1 / ( 1 << BIN_SCALE ) + mult_temp_2 / ( 1 << BIN_SCALE ));
       xz_angle_f = compFilt(gyro_Y_f, xz_angle_acc_f, xz_angle_f);
       yz_angle_f = compFilt(gyro_X_f, yz_angle_acc_f, yz_angle_f);
 
       
-      mpu_orientation->mpu_xz_angle = (int16_t)(xz_angle_f / (int32_t)(32768 / 180));
-      mpu_orientation->mpu_yz_angle = (int16_t)(yz_angle_f / (int32_t)(32768 / 180));
+      //mpu_orientation->mpu_xz_angle = (int16_t)(xz_angle_f / (int32_t)(32768 / 180));
+      //mpu_orientation->mpu_yz_angle = (int16_t)(yz_angle_f / (int32_t)(32768 / 180));
+
+      mpu_orientation->mpu_xz_angle = (int16_t)(xz_angle_f);
+      mpu_orientation->mpu_yz_angle = (int16_t)(yz_angle_f);
+
 
       static int16_t counter = 0;
       if (counter >= 100) {
 
         //NRF_LOG_INFO("Max DFT idx: %d", max_dft_idx);
         //NRF_LOG_INFO("COMP XZ Angle: " NRF_LOG_FLOAT_MARKER "\r\n", NRF_LOG_FLOAT(xz_angle_acc));
-        NRF_LOG_INFO("COMP XZ Angle: %d", xz_angle_f / (int32_t)(32768 / 180));
+        NRF_LOG_INFO("COMP YZ Angle: %d", yz_angle_f / (int32_t)(32768 / 180));
         //NRF_LOG_INFO("Angle is XZ %d", xz_angle_f);
         //NRF_LOG_INFO("alfa %d", alfa1);
         //NRF_LOG_INFO("ACC XZ Angle: %d", xz_angle_acc_f / (int32_t)(32768 / 180));

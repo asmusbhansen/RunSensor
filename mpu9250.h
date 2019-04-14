@@ -59,7 +59,7 @@
 
 #define MPU_TWI_BUFFER_SIZE       14
 
-#define GYRO_SCALE       32.8
+#define GYRO_SCALE       65.5
 
 #define UPDATE_LOOP_DT   5
 
@@ -115,6 +115,8 @@ typedef struct
 {
     int16_t mpu_xz_angle;                                  
     int16_t mpu_yz_angle;
+
+    int16_t step;
 
     //int mpu_xz_angle_f;                                  
     //int mpu_yz_angle_f;
