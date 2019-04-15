@@ -187,3 +187,44 @@ short dft_fixed(short x_new){
     return dom_freq_indx;
 
 }
+short dft_float(float x_new){
+    static float samples[1024];
+    static float dft_r[50];
+    static float dft_i[50];
+    static short new_idx;
+    static short old_idx;
+
+    float temp_s = 0;
+    short dom_freq_indx = 0;
+    float dom_freq = 0;
+    float abs = 0;
+
+    if(new_idx == 1024){
+        new_idx = 0;
+    }
+
+    if(new_idx == 1023){
+        old_idx = 0;
+    } else {
+        old_idx = new_idx + 1;
+    }
+
+    samples[new_idx] = x_new;
+    
+    for(short k = 0;k < 50;k++){
+        temp_s = dft_r[k] + samples[new_idx] - samples[old_idx];
+        dft_r[k] = temp_s*cos(M_PI*k/512) + dft_i[k]*sin(M_PI*k/512);
+        dft_i[k] = dft_i[k]*cos(M_PI*k/512) - temp_s*sin(M_PI*k/512);
+
+        abs = dft_r[k]*dft_r[k] + dft_i[k]*dft_i[k];
+            
+        if(abs > dom_freq){
+            dom_freq = abs;
+            dom_freq_indx = k;    
+        }
+    }
+    new_idx++;
+
+    return dom_freq_indx;
+
+}
