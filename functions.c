@@ -77,11 +77,11 @@ int step_detect(int freq_bin, int bin_start, int bin_stop, int acc_value, int de
 
   if(count%100 == 0)
   {
-    //NRF_LOG_INFO("Step detect: Freq bin = %d", freq_bin);
+    NRF_LOG_INFO("Step detect: Freq bin = %d", freq_bin);
       
-    //NRF_LOG_INFO("Step detect: Maximum acc amplitude = %d", max_acc);
+    NRF_LOG_INFO("Step detect: Maximum acc amplitude = %d", max_acc);
 
-    //NRF_LOG_INFO("Step detect: Sample pr period = %d", (int)samples_in_period);
+    NRF_LOG_INFO("Step detect: Sample pr period = %d", (int)samples_in_period);
 
     count = 0;
 

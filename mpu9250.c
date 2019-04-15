@@ -433,6 +433,8 @@ void process_mpu_data() {
   uint32_t measurements_available = 0;
   mpu9250_sensor_values sensor_values = {0};
 
+  int notify_step = 0;
+
 
   static int16_t yz_angle_f = 0;  //complementary filter
   static int16_t xz_angle_f = 0; //complementary filter
@@ -491,11 +493,16 @@ void process_mpu_data() {
       process_loop_fixed(sensor_values, &mpu_orientation);
       //process_loop_fixed_asm(sensor_values, &mpu_orientation);
       //process_loop_float(sensor_values, &mpu_orientation);
-      //nrf_gpio_pin_clear(LED_3);
+      
 
       freq_bin = dft_fixed(mpu_orientation.mpu_yz_angle);
 
-      if(step_detect(freq_bin, 5, 60, sensor_values.accl_Z, 0.5))
+      nrf_gpio_pin_set(LED_3);
+      notify_step = step_detect(freq_bin, 5, 60, sensor_values.accl_Z, 0.5);
+      nrf_gpio_pin_clear(LED_3);
+
+
+      if(notify_step)
       {
 
         notify_ble();
