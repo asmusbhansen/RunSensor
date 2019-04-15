@@ -14,6 +14,6 @@ void process_loop_fixed_asm(mpu9250_sensor_values sensor_values, MPU9250_orienta
 void process_loop_float(mpu9250_sensor_values sensor_values, MPU9250_orientation * mpu_orientation); 
 
 int step_detect(int freq_bin, int bin_start, int bin_stop, int acc_value, int detect_threshold);
-
+short dft_float(float x_new);
 
 #endif
