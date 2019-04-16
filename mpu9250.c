@@ -489,17 +489,20 @@ void process_mpu_data() {
       //When reading data from the buffer in RAM, we offset by half the buffer if the buffer is determined to be offset.
       read_mpu_data_RAM(&sensor_values, i + buffer_offset * TWIM_RX_BUF_LENGTH);
 
-      
-      process_loop_fixed(sensor_values, &mpu_orientation);
-      //process_loop_fixed_asm(sensor_values, &mpu_orientation);
+      //nrf_gpio_pin_set(LED_3);
+      //process_loop_fixed(sensor_values, &mpu_orientation);
+      process_loop_fixed_asm(sensor_values, &mpu_orientation);
       //process_loop_float(sensor_values, &mpu_orientation);
+      //nrf_gpio_pin_clear(LED_3);  
       
-
+      
+      
       freq_bin = dft_fixed(mpu_orientation.mpu_yz_angle);
-
-      nrf_gpio_pin_set(LED_3);
+      //freq_bin = dft_float((float)mpu_orientation.mpu_yz_angle);
+      
       notify_step = step_detect(freq_bin, 5, 60, sensor_values.accl_Z, 0.5);
       nrf_gpio_pin_clear(LED_3);
+
 
 
       if(notify_step)

@@ -18,6 +18,10 @@ int BIN_SCALE = 15;
           int32_t mult_temp_2 = 0;
           int64_t gyro_temp = 0;
 
+          
+          //int16_t xz_angle_acc_f = cATAN2(sensor_values.accl_X, sensor_values.accl_Z,CORDIC_ITERATIONS);
+          //int16_t yz_angle_acc_f = cATAN2(sensor_values.accl_Y, sensor_values.accl_Z,CORDIC_ITERATIONS);
+
           int16_t xz_angle_acc_f = pATAN2(sensor_values.accl_X, sensor_values.accl_Z);
           int16_t yz_angle_acc_f = pATAN2(sensor_values.accl_Y, sensor_values.accl_Z);
           
