@@ -456,7 +456,7 @@ void process_mpu_data() {
 
 
   static int counter = 0;
-
+  static int first_run = 0;
 
   //In the first iteration the data should be read intp the array p_rx_buffer from index 0. Before processing the data, we instruct the DMA to load data into the buffer from index TWIM_RX_BUF_LENGTH for processing in next iteration
   //The next iteration will read the data from the offset posistion in the buffer, but first make sure that the next iteration the data will be read into the buffer from position 0.
@@ -490,8 +490,8 @@ void process_mpu_data() {
       read_mpu_data_RAM(&sensor_values, i + buffer_offset * TWIM_RX_BUF_LENGTH);
 
       //nrf_gpio_pin_set(LED_3);
-      //process_loop_fixed(sensor_values, &mpu_orientation);
-      process_loop_fixed_asm(sensor_values, &mpu_orientation);
+      process_loop_fixed(sensor_values, &mpu_orientation);
+      //process_loop_fixed_asm(sensor_values, &mpu_orientation);
       //process_loop_float(sensor_values, &mpu_orientation);
       //nrf_gpio_pin_clear(LED_3);  
       
@@ -501,15 +501,27 @@ void process_mpu_data() {
       //freq_bin = dft_float((float)mpu_orientation.mpu_yz_angle);
       
       notify_step = step_detect(freq_bin, 5, 60, sensor_values.accl_Z, 0.5);
-      nrf_gpio_pin_clear(LED_3);
 
 
+
+      if(first_run < 40)
+      {
+        if(counter > 100)
+        {
+          counter = 0;
+          notify_ble();
+          first_run++;
+        }
+      }
+      counter++;
 
       if(notify_step)
       {
 
         notify_ble();
       }
+    
+    
     }
 
     

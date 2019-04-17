@@ -71,7 +71,7 @@ int step_detect(int freq_bin, int bin_start, int bin_stop, int acc_value, int de
 
   static int32_t samples_to_nex_step = 0;
 
-  float samples_in_period = 1/ ((float)UPDATE_LOOP_DT / 1000 ) / ((float)freq_bin * 0.2 * 2);
+  float samples_in_period = 1.5 / ((float)UPDATE_LOOP_DT / 1000 ) / ((float)freq_bin * 0.2 * 2);
 
   count++;
 
@@ -108,7 +108,7 @@ int step_detect(int freq_bin, int bin_start, int bin_stop, int acc_value, int de
   }
 
   //dominant_acc_axis = 1;
-  if(abs(acc_value) > max_acc >> 2)
+  if(abs(acc_value) > max_acc >> 1)
   {
     if(samples_to_nex_step < 0)
     {
