@@ -476,6 +476,7 @@ static void on_run_evt(ble_run_t     * p_run_service,
             notifications_en.xz_value_notification_en = 1;
             //Start application timer when notifications are enabled
 
+
             if(timer_started == 0){
                 err_code = app_timer_start(m_notification_timer_id, NOTIFICATION_INTERVAL, NULL);
                 APP_ERROR_CHECK(err_code);
