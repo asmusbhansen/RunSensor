@@ -1,6 +1,6 @@
 #include "mpu9250.h"
 extern int compFilt(short, short, short);
-      
+extern short sDFT(short); 
 extern short pATAN2(short, short);
 
       
@@ -27,7 +27,11 @@ extern short pATAN2(short, short);
       //xz_angle_f = (int16_t)(mult_temp_1 / ( 1 << BIN_SCALE ) + mult_temp_2 / ( 1 << BIN_SCALE ));
       xz_angle_f = compFilt(gyro_Y_f, xz_angle_acc_f, xz_angle_f);
       yz_angle_f = compFilt(gyro_X_f, yz_angle_acc_f, yz_angle_f);
+      
 
+      nrf_gpio_pin_set(LED_3);
+      sDFT(yz_angle_f);
+      nrf_gpio_pin_clear(LED_3);
       
       //mpu_orientation->mpu_xz_angle = (int16_t)(xz_angle_f / (int32_t)(32768 / 180));
       //mpu_orientation->mpu_yz_angle = (int16_t)(yz_angle_f / (int32_t)(32768 / 180));

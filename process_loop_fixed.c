@@ -43,11 +43,10 @@ int BIN_SCALE = 15;
           mult_temp_2 = filter_constant_2 * yz_angle_acc_f;
 
           yz_angle_f = (int16_t)(mult_temp_1 / ( 1 << BIN_SCALE ) + mult_temp_2 / ( 1 << BIN_SCALE ));
-
-
-      
+          
       mpu_orientation->mpu_xz_angle = (int16_t)(xz_angle_f / (int32_t)(32768 / 180));
       mpu_orientation->mpu_yz_angle = (int16_t)(yz_angle_f / (int32_t)(32768 / 180));
+
 
       static int16_t counter = 0;
       if (counter >= 100) {

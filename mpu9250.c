@@ -488,8 +488,8 @@ void process_mpu_data() {
       read_mpu_data_RAM(&sensor_values, i + buffer_offset * TWIM_RX_BUF_LENGTH);
 
       
-      process_loop_fixed(sensor_values, &mpu_orientation);
-      //process_loop_fixed_asm(sensor_values, &mpu_orientation);
+      //process_loop_fixed(sensor_values, &mpu_orientation);
+      process_loop_fixed_asm(sensor_values, &mpu_orientation);
       //process_loop_float(sensor_values, &mpu_orientation);
       //nrf_gpio_pin_clear(LED_3);
 

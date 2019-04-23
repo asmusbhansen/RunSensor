@@ -120,3 +120,101 @@ angcalc:
          SXTAH r0, r0, r3 //add the angle necesary for rotation 
          BX lr           // Return by branching to the address in the link register.
  .fnend
+
+
+
+
+//.AREA    MyData, DATA, READWRITE
+.text
+.syntax unified
+.globl   sDFT
+.p2align 2
+.type    sDFT,%function 
+.thumb
+
+.extern trigValues
+sDFT:
+        .fnstart
+        push {r4-r12} // store unsafe registers
+
+        // load oldest value and save newest.  
+        // load circular pointer
+        LDR r4, =circPoint;   //get address pointer 
+        LDR r2, [r4]; //load value on address
+
+        LDR r3, =circBuff; //get buffer pointer
+        LDR r1,[r3, r2,lsl #2];  //get old value in the new spot (sh signed halfword)
+        ASR r0,#10
+
+        STR r0,[r3,r2,lsl #2]; // save new  value in the new spot
+        
+        //move  circpoint forward
+        ADD r2,#1     
+        //wrap if above #1023
+        MOV r3, 0x03FF
+        AND r2, r3
+
+        STR r2, [r4] // save new buffer pointer to ram
+        SUB r0,r1 //create xnew-xold
+        
+        //buffer handling completed r0, r1 hold new and old value
+        //_____________________________________________________________
+        
+        LDR r2, =trigValues //store trigvalues entry bottom cos top sin
+        LDR r3, =dftBins //store bin entry bottom real,top img
+        MOV r4,#0     //is offset
+        MOV r5,#0     // is max bin. //also what needs to be pushed out later
+        MOV r6,#0     // is max value
+        //r0 is the combined newest and oldest value
+        //r2 and r3 are pointers to the trigonometric values
+        //max and bin
+top:    
+        LDR r7, [r3,r4,lsl #2] //load bins
+        SADD16 R8,r0, r7 
+        PKHBT r7,r8,r7
+
+        LDR r8, [r2,r4,lsl #2] //load trig values
+        
+        //calculate img bin
+        SMUSDX r9, r8,r7 //i*cos - r*sin 
+
+
+
+        //calculate real bin
+        SMUAD r10, r7, r8 // cos*r + i *sin
+        ASR   r10, #15
+                
+        PKHBT r11, r10, r9, lsl #1 // pack the the new bins
+        
+        STR r11,[r3,r4,lsl #2]     // save to bin
+
+        //find largest bin.
+        SMUAD r11,r11,r11 // real^2 + img^2
+
+        //no need to shift as we are finding max largest value
+
+        CMP r11, r6 // if new max is greater than old max
+        ITT GT
+        MOVGT r6, r11 //save new max
+        MOVGT r5, r4 // and its bin
+
+        //update pointer
+        ADD r4, #1 
+        CMP r4,#50;
+        BNE top // end of loop
+       
+        MOV r0, r5
+        
+        //LDR r4 , =circPoint
+        //LDR r0 , [r4]
+        // end of program we done
+        pop {r4-r12} // restore unsafe registers
+        BX lr           // Return by branching to the address in the link register.
+ .fnend
+ .LTORG
+
+.bss //ensure that it is in ram
+ .p2align 2
+circPoint: .space 4
+circBuff: .space 1024 *4 //
+dftBins: .space 60 *4 // bins
