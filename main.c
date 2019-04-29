@@ -343,7 +343,7 @@ static void notification_timeout_handler(void * p_context)
       APP_ERROR_CHECK(err_code);
     }
     */
-    //sd_app_evt_wait();
+
     
 }
 
@@ -360,7 +360,7 @@ static void update_loop_timeout_handler(void * p_context)
     nrf_gpio_pin_toggle(LED_4);
     process_mpu_data();
     
-    sd_app_evt_wait();
+    //sd_app_evt_wait();
 
 }
 

@@ -1,6 +1,5 @@
 #include "mpu9250.h"
 extern int compFilt(short, short, short);
-extern short sDFT(short); 
 extern short pATAN2(short, short);
 
       

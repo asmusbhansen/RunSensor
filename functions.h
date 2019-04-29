@@ -1,6 +1,7 @@
 #ifndef functions_h
 #define functions_h
 #include "mpu9250.h"
+
 //____________________________________functions____________________________________________
 int cATAN2(short real, short imag, short N);
 
@@ -15,5 +16,7 @@ void process_loop_float(mpu9250_sensor_values sensor_values, MPU9250_orientation
 
 int step_detect(int freq_bin, int bin_start, int bin_stop, int acc_value, int detect_threshold);
 short dft_float(float x_new);
+
+extern short sDFT(short); 
 
 #endif
