@@ -18,8 +18,10 @@ int BIN_SCALE = 15;
           int32_t mult_temp_2 = 0;
           int64_t gyro_temp = 0;
 
-          int16_t xz_angle_acc_f = cATAN2(sensor_values.accl_Z, sensor_values.accl_X, CORDIC_ITERATIONS);
-          int16_t yz_angle_acc_f = cATAN2(sensor_values.accl_Z, sensor_values.accl_Y, CORDIC_ITERATIONS);
+          
+          int16_t xz_angle_acc_f = atan2FC(sensor_values.accl_Z, sensor_values.accl_X);
+
+          int16_t yz_angle_acc_f = atan2FC(sensor_values.accl_Z, sensor_values.accl_Y);
       
           //Convert gyro rate to
           //gyro_temp = (-1) * (int64_t)sensor_values.gyro_Y * 32768;

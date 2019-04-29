@@ -3,7 +3,7 @@
 #include "mpu9250.h"
 //____________________________________functions____________________________________________
 int cATAN2(short real, short imag, short N);
-
+short atan2FC(short y,short x); 
  
 //_____________________________________Main_loop___________________________________________
 /* Struct for storing MPU9250 sensor values */
