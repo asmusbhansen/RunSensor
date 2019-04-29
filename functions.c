@@ -9,6 +9,67 @@ short cose[60] = {0x8000,0x7FFF,0x7FFE,0x7FFA,0x7FF6,0x7FF1,0x7FEA,0x7FE2,0x7FD9
 int trigValues[60] = {0x00007FFF,0x00C97FFE,0x01927FFC,0x025B7FF9,0x03247FF5,0x03ED7FEF,0x04B67FE8,0x057E7FE0,0x06477FD7,0x07107FCD,0x07D97FC1,0x08A17FB4,0x096A7FA6,0x0A327F96,0x0AFB7F86,0x0BC37F74,0x0C8B7F61,0x0D537F4C,0x0E1B7F37,0x0EE37F20,0x0FAB7F08,0x10727EEF,0x11397ED4,0x12007EB9,0x12C77E9C,0x138E7E7E,0x14557E5E,0x151B7E3E,0x15E17E1C,0x16A77DF9,0x176D7DD5,0x18337DB0,0x18F87D89,0x19BD7D61,0x1A827D38,0x1B467D0E,0x1C0B7CE2,0x1CCF7CB6,0x1D937C88,0x1E567C59,0x1F197C29,0x1FDC7BF7,0x209F7BC4,0x21617B91,0x22237B5C,0x22E47B25,0x23A67AEE,0x24677AB5,0x25277A7C,0x25E77A41,0x26A77A04,0x276779C7,0x28267989,0x28E57949,0x29A37908,0x2A6178C6,0x2B1E7883,0x2BDB783F,0x2C9877F9,0x2D5477B3};
 
 //_____________________________________cATAN2___________________________________________
+int atanFC(short z)
+{ 
+    short absz = abs(z);
+    short temp = ((0x7fff -(int)absz)*z)>>15;
+    return (short)((((int)temp*0x0B1F + (int)z*0x2000 ))>>15);
+
+}
+
+short atan2FC(short y,short x)
+{
+  short addPart = 0;
+  if (abs(y)>abs(x))
+  {
+    short temp =x;
+    x=y;
+    y=-temp;
+    addPart += 0x3fff;
+  }
+
+  if(x>0)
+  {
+    short temp = ((int)y<<15)/x;
+    if(temp == 0x8000)
+    {
+      temp = temp+1; // fixfaxerier
+    }
+    return atanFC(temp) + addPart;
+  }
+  else if(x<0 && y>=0)
+  {
+    short temp = ((int)y<<15)/x;
+    if(temp == 0x8000)
+    {
+      temp = temp+1; // fixfaxerier
+    }
+    addPart += 0x7fff;
+
+    return atanFC(temp) + addPart;
+  }
+  else if(x<0 && y<0)
+  {
+    short temp = ((int)y<<15)/x;
+    if(temp == 0x8000)
+    {
+      temp = temp+1; // fixfaxerier
+    }
+    addPart -= 0x7fff;
+
+    return atanFC(temp) + addPart;
+  }
+  else if(y>0 )
+  {
+    return 0x3fff + addPart;
+  }
+  else if(y<0 )
+  {
+    return  addPart -0x3fff;
+  }
+  return 0;
+}
+
 int cATAN2(short real, short imag, short N) {
 
   short theta;

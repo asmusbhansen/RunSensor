@@ -19,10 +19,17 @@ int BIN_SCALE = 15;
           int32_t mult_temp_2 = 0;
           int64_t gyro_temp = 0;
 
+<<<<<<< HEAD
           nrf_gpio_pin_set(LED_3);
           int16_t xz_angle_acc_f = pATAN2(sensor_values.accl_X, sensor_values.accl_Z);
           nrf_gpio_pin_clear(LED_3);
           int16_t yz_angle_acc_f = pATAN2(sensor_values.accl_Y, sensor_values.accl_Z);
+=======
+          
+          int16_t xz_angle_acc_f = atan2FC(sensor_values.accl_Z, sensor_values.accl_X);
+
+          int16_t yz_angle_acc_f = atan2FC(sensor_values.accl_Z, sensor_values.accl_Y);
+>>>>>>> a2f36cf11a6a3942f5f9e16e1ec7c6bbe8e43543
       
           //Convert gyro rate to
           //gyro_temp = (-1) * (int64_t)sensor_values.gyro_Y * 32768;
